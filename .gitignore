@@ -1,5 +1,6 @@
 node_modules/
 dist/
+www/
 *.log
 .DS_Store
 Thumbs.db
@@ -7,3 +8,10 @@ Thumbs.db
 .env
 .env.*
 ScreenShot_*.png
+
+# Android / Capacitor
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+.capacitor/

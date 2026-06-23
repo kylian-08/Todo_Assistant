@@ -7,7 +7,14 @@
     "start": "electron .",
     "build": "electron-builder --win --x64 --dir",
     "build:zip": "electron-builder --win --x64 --dir",
-    "build:installer": "electron-builder --win --x64"
+    "build:installer": "electron-builder --win --x64",
+    "cap:sync-www": "node scripts/sync-www.js",
+    "cap:build-bridge": "esbuild js/capacitor-bridge.mjs --bundle --format=iife --outfile=www/js/capacitor-bridge.js --platform=browser",
+    "cap:prepare": "npm run cap:sync-www && npm run cap:build-bridge",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npm run cap:prepare && npx cap sync android",
+    "cap:open:android": "npx cap open android",
+    "cap:run:android": "npm run cap:sync && npx cap run android"
   },
   "author": "kylian-08",
   "license": "MIT",
@@ -19,7 +26,14 @@
     "url": "https://github.com/kylian-08/TODO_Assistant/issues"
   },
   "homepage": "https://github.com/kylian-08/TODO_Assistant#readme",
+  "dependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/local-notifications": "^7.0.1"
+  },
   "devDependencies": {
+    "@capacitor/cli": "^7.2.0",
+    "esbuild": "^0.25.0",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   },

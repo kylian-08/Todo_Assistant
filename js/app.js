@@ -220,6 +220,10 @@ function syncRemindersToMain() {
     window.electronAPI.syncReminders(list);
     return;
   }
+  if (window.capacitorReminders?.isNative?.()) {
+    window.capacitorReminders.sync(list);
+    return;
+  }
   scheduleBrowserReminders(list);
 }
 
@@ -1386,6 +1390,7 @@ function bindEvents() {
   bindEvents();
   window.electronAPI?.onDataChanged?.(() => loadRecords().then(renderView));
   window.electronAPI?.onReminderFired?.(data => handleReminderFired(data?.id));
+  window.addEventListener('capacitor-reminder-fired', e => handleReminderFired(e.detail?.id));
   window.electronAPI?.onDesktopSettings?.(async d => {
     settings.alwaysOnTop = d.alwaysOnTop;
     const ballChanged = settings.floatBall !== d.floatBall;

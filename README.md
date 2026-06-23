@@ -166,3 +166,19 @@ TODO_Assistant/
 **[kylian-08](https://github.com/kylian-08)**
 
 如果这个项目对你有帮助，欢迎点个 **Star** ⭐
+
+---
+
+## 📱 Android 版
+
+Android 支持在独立分支 **[`android`](https://github.com/kylian-08/TODO_Assistant/tree/android)** 维护，基于 Capacitor 打包，功能与桌面版共享同一套 Web 代码。
+
+```bash
+git checkout android
+npm install
+npm run cap:prepare
+npm run cap:add:android   # 首次
+npm run cap:open:android
+```
+
+详见 [ANDROID.md](ANDROID.md)

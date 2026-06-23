@@ -1,0 +1,31 @@
+/* Android / 移动端布局优化 */
+@media (max-width: 960px) {
+  .composer, .feed {
+    max-height: none;
+    min-height: auto;
+  }
+  .topbar-actions { gap: 6px; }
+  .text-btn { display: none; }
+  .stat-cards { grid-template-columns: repeat(3, 1fr); }
+  .card-actions { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .app-shell { padding: 8px 10px 14px; }
+  .topbar { padding: 8px 12px; }
+  .brand-text strong { font-size: .85rem; }
+  .seg-control.compact { display: none; }
+  .filter-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .filter-chips .chip { flex-shrink: 0; }
+  .stat-cards { grid-template-columns: repeat(2, 1fr); }
+  .form-foot { flex-direction: column; }
+  .form-foot .btn { width: 100%; }
+}
+
+/* Capacitor 安全区（刘海屏） */
+@supports (padding: env(safe-area-inset-top)) {
+  .app-shell {
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TODO Assistant</string>
+    <string name="title_activity_main">TODO Assistant</string>
+    <string name="package_name">com.kylian.todoassistant</string>
+    <string name="custom_url_scheme">com.kylian.todoassistant</string>
+</resources>
