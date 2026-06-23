@@ -64,6 +64,8 @@ let savePending = false;
 let contentTab = 'edit';
 let historyRecordId = null;
 let dragRecordId = null;
+let reminderMode = 'absolute';
+const browserReminderTimers = new Map();
 
 /* ── IndexedDB ── */
 function openDB() {
@@ -132,6 +134,8 @@ function normalizeRecord(r) {
     done: status === 'resolved' || !!r.done,
     pinned: !!r.pinned,
     history: r.history || [],
+    reminderAt: r.reminderAt || null,
+    reminderNotified: !!r.reminderNotified,
     createdAt: r.createdAt || new Date().toISOString(),
     updatedAt: r.updatedAt || new Date().toISOString(),
   };
@@ -160,6 +164,7 @@ async function migrateFromLocalStorage() {
 
 async function loadRecords() {
   recordsCache = (await dbGetAll()).map(normalizeRecord);
+  syncRemindersToMain();
   return recordsCache;
 }
 
@@ -174,6 +179,7 @@ async function persistRecord(record) {
   savePending = false;
   updateSaveStatus('saved');
   notifyDataChanged();
+  syncRemindersToMain();
 }
 
 async function persistAll(list) {
@@ -184,6 +190,7 @@ async function persistAll(list) {
   savePending = false;
   updateSaveStatus('saved');
   notifyDataChanged();
+  syncRemindersToMain();
 }
 
 async function removeRecord(id) {
@@ -191,6 +198,226 @@ async function removeRecord(id) {
   recordsCache = recordsCache.filter(r => r.id !== id);
   updateSaveStatus('saved');
   notifyDataChanged();
+  syncRemindersToMain();
+}
+
+function reminderPayload(r) {
+  return {
+    id: r.id,
+    title: r.title,
+    type: r.type,
+    reminderAt: r.reminderAt,
+    reminderNotified: r.reminderNotified,
+  };
+}
+
+function syncRemindersToMain() {
+  const list = recordsCache
+    .filter(r => r.reminderAt && !r.reminderNotified && !r.done)
+    .map(reminderPayload);
+
+  if (window.electronAPI?.syncReminders) {
+    window.electronAPI.syncReminders(list);
+    return;
+  }
+  scheduleBrowserReminders(list);
+}
+
+function clearBrowserReminderTimer(id) {
+  const t = browserReminderTimers.get(id);
+  if (t) clearTimeout(t);
+  browserReminderTimers.delete(id);
+}
+
+async function fireBrowserReminder(item) {
+  clearBrowserReminderTimer(item.id);
+  const r = recordsCache.find(x => x.id === item.id);
+  if (!r || r.reminderNotified || r.done) return;
+
+  const label = TYPE_LABELS[r.type] || r.type;
+  if ('Notification' in window) {
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    if (Notification.permission === 'granted') {
+      const n = new Notification('TODO Assistant · 提醒', {
+        body: `[${label}] ${r.title}`,
+        icon: 'assets/icon.png',
+      });
+      n.onclick = () => window.focus();
+    }
+  }
+  await handleReminderFired(item.id);
+}
+
+function scheduleBrowserReminders(list) {
+  const active = new Set();
+  const now = Date.now();
+
+  for (const item of list) {
+    if (!item?.id || !item.reminderAt) continue;
+    const at = new Date(item.reminderAt).getTime();
+    if (Number.isNaN(at)) continue;
+
+    active.add(item.id);
+    clearBrowserReminderTimer(item.id);
+
+    if (at <= now) {
+      fireBrowserReminder(item);
+      continue;
+    }
+
+    browserReminderTimers.set(item.id, setTimeout(() => fireBrowserReminder(item), at - now));
+  }
+
+  for (const id of [...browserReminderTimers.keys()]) {
+    if (!active.has(id)) clearBrowserReminderTimer(id);
+  }
+}
+
+async function handleReminderFired(id) {
+  const r = recordsCache.find(x => x.id === id);
+  if (!r || r.reminderNotified) return;
+  r.reminderNotified = true;
+  r.updatedAt = new Date().toISOString();
+  await persistRecord(r);
+  renderView();
+  toast(`提醒：${r.title}`);
+}
+
+async function clearRecordReminder(id) {
+  const r = recordsCache.find(x => x.id === id);
+  if (!r || !r.reminderAt) return;
+  r.reminderAt = null;
+  r.reminderNotified = false;
+  r.updatedAt = new Date().toISOString();
+  await persistRecord(r);
+  toast('已取消提醒');
+  renderView();
+}
+
+function toDatetimeLocalValue(date) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function defaultReminderDatetime() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 30, 0, 0);
+  return toDatetimeLocalValue(d);
+}
+
+function toggleReminderPanel() {
+  const enabled = document.getElementById('reminderEnabled').checked;
+  document.getElementById('reminderPanel').classList.toggle('hidden', !enabled);
+  if (enabled) {
+    const dt = document.getElementById('reminderDateTime');
+    if (!dt.value) dt.value = defaultReminderDatetime();
+    updateReminderPreview();
+  }
+  scheduleDraftSave();
+}
+
+function setReminderMode(mode, btn) {
+  reminderMode = mode;
+  document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('reminderAbsoluteRow').classList.toggle('hidden', mode !== 'absolute');
+  document.getElementById('reminderRelativeRow').classList.toggle('hidden', mode !== 'relative');
+  updateReminderPreview();
+  scheduleDraftSave();
+}
+
+function computeReminderAtFromForm() {
+  if (!document.getElementById('reminderEnabled').checked) return null;
+
+  if (reminderMode === 'relative') {
+    const mins = parseInt(document.getElementById('reminderMinutes').value, 10);
+    if (!mins || mins < 1) return null;
+    return new Date(Date.now() + mins * 60000).toISOString();
+  }
+
+  const raw = document.getElementById('reminderDateTime').value;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function updateReminderPreview() {
+  const el = document.getElementById('reminderPreview');
+  if (!document.getElementById('reminderEnabled').checked) {
+    el.textContent = '';
+    return;
+  }
+
+  const at = computeReminderAtFromForm();
+  if (!at) {
+    el.textContent = '请填写有效的提醒时间';
+    el.classList.add('warn');
+    return;
+  }
+
+  const diff = new Date(at).getTime() - Date.now();
+  if (diff <= 0) {
+    el.textContent = '提醒时间需晚于当前时间';
+    el.classList.add('warn');
+    return;
+  }
+
+  el.classList.remove('warn');
+  const mins = Math.round(diff / 60000);
+  if (mins < 60) el.textContent = `将在约 ${mins} 分钟后提醒（${formatDate(at)}）`;
+  else if (mins < 1440) el.textContent = `将在约 ${Math.floor(mins / 60)} 小时 ${mins % 60} 分钟后提醒（${formatDate(at)}）`;
+  else el.textContent = `将在 ${formatDate(at)} 提醒`;
+}
+
+function setReminderFormFromRecord(r) {
+  const enabled = !!(r?.reminderAt && !r.reminderNotified);
+  document.getElementById('reminderEnabled').checked = enabled;
+  document.getElementById('reminderPanel').classList.toggle('hidden', !enabled);
+
+  if (!enabled) {
+    document.getElementById('reminderDateTime').value = defaultReminderDatetime();
+    document.getElementById('reminderMinutes').value = '30';
+    reminderMode = 'absolute';
+    document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === 'absolute'));
+    document.getElementById('reminderAbsoluteRow').classList.remove('hidden');
+    document.getElementById('reminderRelativeRow').classList.add('hidden');
+    updateReminderPreview();
+    return;
+  }
+
+  reminderMode = 'absolute';
+  document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'absolute'));
+  document.getElementById('reminderAbsoluteRow').classList.remove('hidden');
+  document.getElementById('reminderRelativeRow').classList.add('hidden');
+  document.getElementById('reminderDateTime').value = toDatetimeLocalValue(r.reminderAt);
+  updateReminderPreview();
+}
+
+function resetReminderForm() {
+  document.getElementById('reminderEnabled').checked = false;
+  document.getElementById('reminderPanel').classList.add('hidden');
+  document.getElementById('reminderDateTime').value = defaultReminderDatetime();
+  document.getElementById('reminderMinutes').value = '30';
+  reminderMode = 'absolute';
+  document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'absolute'));
+  document.getElementById('reminderAbsoluteRow').classList.remove('hidden');
+  document.getElementById('reminderRelativeRow').classList.add('hidden');
+  document.getElementById('reminderPreview').textContent = '';
+  document.getElementById('reminderPreview').classList.remove('warn');
+}
+
+function renderReminderBadge(r) {
+  if (r.reminderNotified) return '<span class="badge badge-reminder-done">已提醒</span>';
+  if (!r.reminderAt || r.done) return '';
+  const at = new Date(r.reminderAt).getTime();
+  if (Number.isNaN(at) || at <= Date.now()) return '';
+  return `<span class="badge badge-reminder" title="提醒时间">⏰ ${formatDate(r.reminderAt)}</span>`;
 }
 
 function notifyDataChanged() {
@@ -384,6 +611,10 @@ function getFormState() {
     project: document.getElementById('project').value,
     priority: document.getElementById('priority').value,
     status: document.getElementById('status').value,
+    reminderEnabled: document.getElementById('reminderEnabled').checked,
+    reminderMode,
+    reminderDateTime: document.getElementById('reminderDateTime').value,
+    reminderMinutes: document.getElementById('reminderMinutes').value,
     attachments: pendingAttachments,
     editingId,
     savedAt: new Date().toISOString(),
@@ -428,6 +659,20 @@ function restoreDraft() {
     document.getElementById('project').value = draft.project || '';
     document.getElementById('priority').value = draft.priority || 'mid';
     document.getElementById('status').value = draft.status || 'open';
+    if (draft.reminderEnabled) {
+      document.getElementById('reminderEnabled').checked = true;
+      reminderMode = draft.reminderMode || 'absolute';
+      document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === reminderMode));
+      document.getElementById('reminderAbsoluteRow').classList.toggle('hidden', reminderMode !== 'absolute');
+      document.getElementById('reminderRelativeRow').classList.toggle('hidden', reminderMode !== 'relative');
+      document.getElementById('reminderDateTime').value = draft.reminderDateTime || defaultReminderDatetime();
+      document.getElementById('reminderMinutes').value = draft.reminderMinutes || '30';
+      document.getElementById('reminderPanel').classList.remove('hidden');
+      updateReminderPreview();
+    } else {
+      resetReminderForm();
+    }
     pendingAttachments = draft.attachments || draft.images || [];
     document.querySelectorAll('.pill').forEach(t =>
       t.classList.toggle('active', t.dataset.type === currentType));
@@ -559,6 +804,7 @@ function resetForm(clearDraft = false) {
   document.querySelectorAll('.pill').forEach(t => t.classList.toggle('active', t.dataset.type === 'bug'));
   currentType = 'bug';
   updateBugTemplateBtn();
+  resetReminderForm();
   setContentTab('edit');
   if (clearDraft) {
     localStorage.removeItem(DRAFT_KEY);
@@ -575,6 +821,11 @@ async function saveEntry(e) {
   const now = new Date().toISOString();
   const project = ensureProject(document.getElementById('project').value);
   const status = document.getElementById('status').value;
+  const reminderAt = computeReminderAtFromForm();
+  if (document.getElementById('reminderEnabled').checked) {
+    if (!reminderAt) { toast('请填写有效的提醒时间'); return; }
+    if (new Date(reminderAt).getTime() <= Date.now()) { toast('提醒时间需晚于当前时间'); return; }
+  }
 
   let existing = editingId ? recordsCache.find(r => r.id === editingId) : null;
   const history = existing ? [...(existing.history || [])] : [];
@@ -597,6 +848,10 @@ async function saveEntry(e) {
     pinned: existing?.pinned || false,
     attachments: JSON.parse(JSON.stringify(pendingAttachments)),
     history,
+    reminderAt: document.getElementById('reminderEnabled').checked ? reminderAt : null,
+    reminderNotified: document.getElementById('reminderEnabled').checked
+      ? (existing?.reminderAt === reminderAt ? !!existing?.reminderNotified : false)
+      : false,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -627,6 +882,7 @@ async function editEntry(id) {
   document.getElementById('submitBtn').textContent = '更新留档';
   updateBugTemplateBtn();
   setContentTab('edit');
+  setReminderFormFromRecord(r);
   document.querySelector('.composer').scrollTop = 0;
   scheduleDraftSave();
 }
@@ -636,6 +892,10 @@ async function toggleDone(id) {
   if (!r) return;
   r.done = !r.done;
   r.status = r.done ? 'resolved' : 'open';
+  if (r.done) {
+    r.reminderAt = null;
+    r.reminderNotified = false;
+  }
   r.updatedAt = new Date().toISOString();
   await persistRecord(r);
   renderView();
@@ -815,6 +1075,7 @@ function renderList() {
             <span class="badge badge-${r.type}">${TYPE_LABELS[r.type]}</span>
             <span class="badge badge-${r.priority}">${PRIORITY_LABELS[r.priority]}</span>
             <span class="badge badge-status">${STATUS_LABELS[r.status]}</span>
+            ${renderReminderBadge(r)}
             ${r.done ? '<span class="badge badge-done">已完成</span>' : ''}
           </div>
         </div>
@@ -830,6 +1091,7 @@ function renderList() {
           <div class="card-actions">
             <button onclick="copyEntry('${r.id}')">复制</button>
             <button onclick="openHistoryModal('${r.id}')">历史</button>
+            ${r.reminderAt && !r.reminderNotified && !r.done ? `<button onclick="clearRecordReminder('${r.id}')">取消提醒</button>` : ''}
             <button onclick="toggleDone('${r.id}')">${r.done ? '重开' : '完成'}</button>
             <button onclick="editEntry('${r.id}')">编辑</button>
             <button class="danger" onclick="deleteEntry('${r.id}')">删除</button>
@@ -859,6 +1121,7 @@ function renderKanban() {
               <span class="badge badge-${r.type}">${TYPE_LABELS[r.type]}</span>
               <span class="badge badge-${r.priority}">${PRIORITY_LABELS[r.priority]}</span>
               ${r.project ? `<span>📁 ${esc(r.project)}</span>` : ''}
+              ${renderReminderBadge(r)}
             </div>
           </div>`).join('') || '<p class="hint-text" style="padding:8px">拖拽卡片到此处</p>'}
       </div>`;
@@ -1085,11 +1348,14 @@ function bindEvents() {
     if (contentTab === 'preview') setContentTab('preview');
   });
 
-  ['title', 'tags', 'project', 'priority', 'status'].forEach(id => {
+  ['title', 'tags', 'project', 'priority', 'status', 'reminderDateTime', 'reminderMinutes'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('input', scheduleDraftSave);
     el.addEventListener('change', scheduleDraftSave);
   });
+
+  document.getElementById('reminderDateTime').addEventListener('change', updateReminderPreview);
+  document.getElementById('reminderMinutes').addEventListener('change', updateReminderPreview);
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -1119,6 +1385,7 @@ function bindEvents() {
   await loadRecords();
   bindEvents();
   window.electronAPI?.onDataChanged?.(() => loadRecords().then(renderView));
+  window.electronAPI?.onReminderFired?.(data => handleReminderFired(data?.id));
   window.electronAPI?.onDesktopSettings?.(async d => {
     settings.alwaysOnTop = d.alwaysOnTop;
     const ballChanged = settings.floatBall !== d.floatBall;
@@ -1129,6 +1396,7 @@ function bindEvents() {
   });
   refreshProjectUI();
   updateBugTemplateBtn();
+  resetReminderForm();
   updateSaveStatus('saved');
   checkDraftBanner();
   renderView();

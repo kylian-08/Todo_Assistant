@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDesktopSettings: cb => ipcRenderer.on('desktop-settings', (_, data) => cb(data)),
   onThemeChanged: cb => ipcRenderer.on('theme-changed', (_, theme) => cb(theme)),
   broadcastTheme: theme => ipcRenderer.invoke('broadcast-theme', theme),
+  syncReminders: reminders => ipcRenderer.invoke('sync-reminders', reminders),
+  onReminderFired: cb => ipcRenderer.on('reminder-fired', (_, data) => cb(data)),
 });

@@ -863,6 +863,44 @@ select { cursor: pointer; }
   margin-bottom: 8px; cursor: pointer;
 }
 .check input { width: auto; accent-color: var(--accent); }
+
+.reminder-field .check { margin-bottom: 10px; }
+.reminder-panel {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--glass-input);
+  border: 1px solid var(--glass-line);
+}
+.reminder-mode { margin-bottom: 10px; }
+.reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reminder-row input[type="datetime-local"],
+.reminder-row input[type="number"] {
+  flex: 1;
+  min-width: 0;
+}
+.reminder-row input[type="number"] { max-width: 120px; }
+.reminder-unit { font-size: .74rem; color: var(--text-2); white-space: nowrap; }
+.reminder-preview {
+  margin-top: 8px;
+  font-size: .72rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.reminder-preview.warn { color: var(--todo); }
+.badge-reminder {
+  background: rgba(79,107,237,.08);
+  color: var(--accent);
+  border-color: rgba(79,107,237,.18);
+}
+.badge-reminder-done {
+  background: rgba(120,135,170,.08);
+  color: var(--text-2);
+  border-color: var(--glass-line);
+}
 .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .project-manage { display: flex; flex-wrap: wrap; gap: 6px; }

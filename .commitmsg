@@ -1,0 +1,6 @@
+Rename to TODO_Assistant, add reminders, and publish polished README.
+
+- Rebrand product to TODO Assistant (TODO_Assistant.exe)
+- Add scheduled reminders with Windows native notifications
+- Rewrite README with detailed feature docs and structure
+- Update build scripts and package metadata for kylian-08

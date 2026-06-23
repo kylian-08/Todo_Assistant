@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>留档助手</title>
+  <title>TODO Assistant · 留档助手</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
@@ -26,8 +26,8 @@
         <img src="assets/brand-mark.svg" alt="" class="brand-icon" width="28" height="28">
       </div>
       <div class="brand-text">
-        <strong>留档助手</strong>
-        <span>Archive</span>
+        <strong>TODO Assistant</strong>
+        <span>留档助手</span>
       </div>
     </div>
     <div class="topbar-actions">
@@ -103,6 +103,26 @@
         <div class="field">
           <label for="tags">标签</label>
           <input type="text" id="tags" placeholder="逗号分隔">
+        </div>
+        <div class="field reminder-field">
+          <label class="check">
+            <input type="checkbox" id="reminderEnabled" onchange="toggleReminderPanel()">
+            设置提醒
+          </label>
+          <div class="reminder-panel hidden" id="reminderPanel">
+            <div class="mini-seg reminder-mode">
+              <button type="button" class="mini-seg-btn active" data-mode="absolute" onclick="setReminderMode('absolute',this)">指定时间</button>
+              <button type="button" class="mini-seg-btn" data-mode="relative" onclick="setReminderMode('relative',this)">分钟后</button>
+            </div>
+            <div class="reminder-row" id="reminderAbsoluteRow">
+              <input type="datetime-local" id="reminderDateTime" oninput="updateReminderPreview()">
+            </div>
+            <div class="reminder-row hidden" id="reminderRelativeRow">
+              <input type="number" id="reminderMinutes" min="1" max="43200" value="30" placeholder="分钟" oninput="updateReminderPreview()">
+              <span class="reminder-unit">分钟后提醒</span>
+            </div>
+            <div class="reminder-preview" id="reminderPreview"></div>
+          </div>
         </div>
         <div class="field">
           <div class="label-row">

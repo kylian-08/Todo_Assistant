@@ -3,7 +3,7 @@ chcp 65001 >nul
 cd /d "%~dp0"
 
 echo ========================================
-echo   留档助手 - 构建 Windows EXE
+echo   TODO Assistant - 构建 Windows EXE
 echo ========================================
 echo.
 
@@ -34,8 +34,8 @@ if errorlevel 1 (
 
 echo.
 echo [2/2] 创建 ZIP 压缩包...
-if exist "dist\LiudangAssistant-1.0.0-win-x64.zip" del /f "dist\LiudangAssistant-1.0.0-win-x64.zip"
-powershell -NoProfile -Command "Compress-Archive -Path 'dist\win-unpacked\*' -DestinationPath 'dist\LiudangAssistant-1.0.0-win-x64.zip' -Force"
+if exist "dist\TODO_Assistant-1.0.0-win-x64.zip" del /f "dist\TODO_Assistant-1.0.0-win-x64.zip"
+powershell -NoProfile -Command "Compress-Archive -Path 'dist\win-unpacked\*' -DestinationPath 'dist\TODO_Assistant-1.0.0-win-x64.zip' -Force"
 if errorlevel 1 (
   echo [警告] ZIP 创建失败，可直接使用绿色版文件夹
 ) else (
@@ -44,7 +44,7 @@ if errorlevel 1 (
 
 echo.
 echo 复制启动脚本...
-copy /y "启动留档助手.bat" "dist\win-unpacked\启动留档助手.bat" >nul
+copy /y "启动TODO_Assistant.bat" "dist\win-unpacked\启动TODO_Assistant.bat" >nul
 
 echo.
 echo ========================================
@@ -52,11 +52,11 @@ echo   构建完成！
 echo ========================================
 echo.
 echo 直接运行:
-echo   dist\win-unpacked\LiudangAssistant.exe
-echo   dist\win-unpacked\启动留档助手.bat
+echo   dist\win-unpacked\TODO_Assistant.exe
+echo   dist\win-unpacked\启动TODO_Assistant.bat
 echo.
 echo 分发压缩包:
-echo   dist\LiudangAssistant-1.0.0-win-x64.zip
+echo   dist\TODO_Assistant-1.0.0-win-x64.zip
 echo.
 echo 如需安装版，网络畅通时运行: npm run build:installer
 echo.

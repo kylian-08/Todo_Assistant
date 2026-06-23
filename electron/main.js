@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, Notification } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -13,6 +13,61 @@ let floatBallWindow = null;
 let floatPanelWindow = null;
 let tray = null;
 let isQuitting = false;
+
+const reminderTimers = new Map();
+const recentlyFiredReminders = new Set();
+const TYPE_LABELS_MAIN = { bug: 'Bug', todo: '待办', req: '需求', idea: '灵感' };
+
+function clearReminderTimer(id) {
+  const t = reminderTimers.get(id);
+  if (t) clearTimeout(t);
+  reminderTimers.delete(id);
+}
+
+function showRecordReminder({ id, title, type, reminderAt }) {
+  if (recentlyFiredReminders.has(id)) return;
+  recentlyFiredReminders.add(id);
+  setTimeout(() => recentlyFiredReminders.delete(id), 15000);
+  clearReminderTimer(id);
+  if (!Notification.isSupported()) return;
+  const when = reminderAt ? new Date(reminderAt) : null;
+  const timeStr = when && !Number.isNaN(when.getTime())
+    ? when.toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', month: 'numeric', day: 'numeric' })
+    : '';
+  const n = new Notification({
+    title: 'TODO Assistant · 提醒',
+    body: `[${TYPE_LABELS_MAIN[type] || type}] ${title}${timeStr ? `\n${timeStr}` : ''}`,
+    icon: iconPath(),
+    silent: false,
+  });
+  n.on('click', () => showMainWindow());
+  broadcast('reminder-fired', { id });
+}
+
+function syncReminderTimers(reminders) {
+  const active = new Set();
+  const now = Date.now();
+
+  for (const r of reminders || []) {
+    if (!r?.id || !r.reminderAt || r.reminderNotified) continue;
+    const at = new Date(r.reminderAt).getTime();
+    if (Number.isNaN(at)) continue;
+
+    active.add(r.id);
+    clearReminderTimer(r.id);
+
+    if (at <= now) {
+      showRecordReminder(r);
+      continue;
+    }
+
+    reminderTimers.set(r.id, setTimeout(() => showRecordReminder(r), at - now));
+  }
+
+  for (const id of [...reminderTimers.keys()]) {
+    if (!active.has(id)) clearReminderTimer(id);
+  }
+}
 
 const desktopSettings = {
   minimizeToTray: true,
@@ -77,7 +132,7 @@ function createMainWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    title: '留档助手',
+    title: 'TODO Assistant · 留档助手',
     icon: iconPath(),
     backgroundColor: '#f0f4fb',
     show: false,
@@ -214,7 +269,7 @@ function showFloatBallContextMenu() {
     { type: 'separator' },
     { label: '隐藏悬浮球', click: hideFloatBallFromMenu },
     { type: 'separator' },
-    { label: '退出留档助手', click: quitApplication },
+    { label: '退出 TODO Assistant', click: quitApplication },
   ]);
   if (floatBallWindow && !floatBallWindow.isDestroyed()) {
     menu.popup({ window: floatBallWindow });
@@ -247,7 +302,7 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: '退出留档助手',
+      label: '退出 TODO Assistant',
       click: quitApplication,
     },
   ]);
@@ -256,7 +311,7 @@ function updateTrayMenu() {
 
 function createTray() {
   tray = new Tray(getTrayImage());
-  tray.setToolTip('留档助手 — 双击显示主窗口');
+  tray.setToolTip('TODO Assistant — 双击显示主窗口');
   tray.on('double-click', showMainWindow);
   tray.on('click', () => {
     if (process.platform === 'win32') showMainWindow();
@@ -333,6 +388,10 @@ ipcMain.handle('toggle-float-ball', (_, show) => {
 });
 ipcMain.handle('notify-data-changed', () => broadcast('data-changed'));
 ipcMain.handle('broadcast-theme', (_, theme) => { broadcast('theme-changed', theme); });
+ipcMain.handle('sync-reminders', (_, reminders) => {
+  syncReminderTimers(reminders);
+  return { ok: true, count: reminderTimers.size };
+});
 ipcMain.handle('show-float-ball-menu', () => showFloatBallContextMenu());
 ipcMain.handle('quit-app', () => { quitApplication(); });
 
@@ -350,6 +409,7 @@ if (!gotLock) {
   app.on('second-instance', () => showMainWindow());
 
   app.whenReady().then(() => {
+    if (process.platform === 'win32') app.setAppUserModelId('com.kylian.todo-assistant');
     createTray();
     createMainWindow();
   });
