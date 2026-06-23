@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>留档助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="ambient">
+    <div class="ambient-gradient"></div>
+    <div class="shape-3d shape-ring" aria-hidden="true"></div>
+    <div class="shape-3d shape-sphere" aria-hidden="true"></div>
+    <div class="shape-3d shape-hex" aria-hidden="true"></div>
+    <div class="shape-3d shape-disc" aria-hidden="true"></div>
+  </div>
+
+  <div class="app-shell">
+  <header class="topbar glass-3d">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <img src="assets/brand-mark.svg" alt="" class="brand-icon" width="28" height="28">
+      </div>
+      <div class="brand-text">
+        <strong>留档助手</strong>
+        <span>Archive</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="save-pill" id="saveStatus">
+        <span class="save-dot" id="saveDot"></span>
+        <span id="saveText">初始化</span>
+      </div>
+      <div class="seg-control view-toggle">
+        <button class="seg-btn active" id="btnListView" onclick="setViewMode('list')">列表</button>
+        <button class="seg-btn" id="btnKanbanView" onclick="setViewMode('kanban')">看板</button>
+      </div>
+      <button class="icon-btn icon-btn--theme" id="themeBtn" onclick="toggleTheme()" title="切换深色模式"></button>
+      <button class="text-btn electron-only hidden" onclick="showFloatPanel()">悬浮面板</button>
+      <button class="text-btn electron-only hidden" onclick="minimizeToTray()">收起到托盘</button>
+      <button class="icon-btn icon-btn--settings" id="settingsBtn" onclick="openSettings()" title="应用设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      <div class="seg-control compact">
+        <button class="seg-btn" onclick="exportData()">导出</button>
+        <button class="seg-btn" onclick="document.getElementById('importFile').click()">导入</button>
+        <input type="file" id="importFile" accept=".json" onchange="importData(event)">
+      </div>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="composer glass-3d">
+      <div class="section-label">新建留档</div>
+      <div class="draft-banner" id="draftBanner">
+        <span>有未保存草稿</span>
+        <button type="button" onclick="restoreDraft()">恢复</button>
+      </div>
+      <form id="entryForm" onsubmit="saveEntry(event)">
+        <div class="field">
+          <label>类型</label>
+          <div class="type-pills">
+            <button type="button" class="pill active" data-type="bug" onclick="setType('bug',this)">Bug</button>
+            <button type="button" class="pill" data-type="todo" onclick="setType('todo',this)">待办</button>
+            <button type="button" class="pill" data-type="req" onclick="setType('req',this)">需求</button>
+            <button type="button" class="pill" data-type="idea" onclick="setType('idea',this)">灵感</button>
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="project">项目</label>
+            <input type="text" id="project" list="projectList" placeholder="模块名称">
+            <datalist id="projectList"></datalist>
+          </div>
+          <div class="field">
+            <label for="priority">优先级</label>
+            <select id="priority">
+              <option value="high">高</option>
+              <option value="mid" selected>中</option>
+              <option value="low">低</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="status">状态</label>
+          <select id="status">
+            <option value="open">待处理</option>
+            <option value="progress">进行中</option>
+            <option value="resolved">已解决</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="title">标题</label>
+          <input type="text" id="title" placeholder="一句话描述" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="tags">标签</label>
+          <input type="text" id="tags" placeholder="逗号分隔">
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <label for="content">内容</label>
+            <div class="mini-seg">
+              <button type="button" class="mini-seg-btn active" id="tabEdit" onclick="setContentTab('edit')">编辑</button>
+              <button type="button" class="mini-seg-btn" id="tabPreview" onclick="setContentTab('preview')">预览</button>
+              <button type="button" class="mini-seg-btn accent bug-only" id="btnBugTemplate" onclick="insertBugTemplate()">模板</button>
+            </div>
+          </div>
+          <textarea id="content" placeholder="Markdown · Ctrl+V 粘贴截图"></textarea>
+          <div id="contentPreview" class="md-preview hidden"></div>
+        </div>
+        <div class="field">
+          <label>附件</label>
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            <span>拖放或点击上传</span>
+            <small>图片 · 日志 · 文本 · 8MB</small>
+          </div>
+          <input type="file" id="fileInput" accept="image/*,.txt,.log,.json,.md,.csv" multiple onchange="handleFiles(this.files)">
+          <div class="preview-grid" id="previewGrid"></div>
+        </div>
+        <div class="form-foot">
+          <button type="button" class="btn btn-soft" onclick="resetForm(true)">清空</button>
+          <button type="submit" class="btn btn-3d" id="submitBtn">保存</button>
+        </div>
+      </form>
+    </aside>
+
+    <main class="feed glass-3d">
+      <div class="feed-head">
+        <div class="section-label">留档列表</div>
+        <div class="toolbar">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+            <input type="text" id="search" placeholder="搜索..." oninput="renderView()">
+          </div>
+          <select id="filterProject" onchange="renderView()"><option value="">全部项目</option></select>
+          <select id="sortBy" onchange="renderView()">
+            <option value="newest">最新</option>
+            <option value="oldest">最早</option>
+            <option value="priority">优先级</option>
+            <option value="updated">更新</option>
+          </select>
+        </div>
+        <div class="filter-chips">
+          <button class="chip active" data-filter="all" onclick="setFilter('all',this)">全部</button>
+          <button class="chip" data-filter="bug" onclick="setFilter('bug',this)">Bug</button>
+          <button class="chip" data-filter="todo" onclick="setFilter('todo',this)">待办</button>
+          <button class="chip" data-filter="req" onclick="setFilter('req',this)">需求</button>
+          <button class="chip" data-filter="idea" onclick="setFilter('idea',this)">灵感</button>
+          <button class="chip" data-filter="pinned" onclick="setFilter('pinned',this)">置顶</button>
+          <button class="chip" data-filter="done" onclick="setFilter('done',this)">完成</button>
+        </div>
+      </div>
+      <div class="stat-cards" id="statCards"></div>
+      <div class="card-list" id="cardList"></div>
+      <div class="kanban hidden" id="kanbanBoard"></div>
+    </main>
+  </div>
+  </div>
+
+  <div class="modal-overlay" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+    <img id="lightboxImg" src="" alt="">
+  </div>
+
+  <div class="modal-overlay" id="historyModal" onclick="if(event.target===this)closeHistoryModal()">
+    <div class="modal-sheet glass-3d" onclick="event.stopPropagation()">
+      <div class="modal-head"><h3>版本历史</h3><button class="modal-x" onclick="closeHistoryModal()">×</button></div>
+      <div class="modal-body" id="historyBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+    <div class="modal-sheet glass-3d wide" onclick="event.stopPropagation()">
+      <div class="modal-head"><h3>设置</h3><button class="modal-x" onclick="closeSettings()">×</button></div>
+      <div class="modal-body settings-body">
+        <section class="settings-block">
+          <h4>项目</h4>
+          <div id="projectManage" class="project-manage"></div>
+          <div class="field-grid mt-8">
+            <input type="text" id="newProjectName" placeholder="新项目名称">
+            <button type="button" class="btn btn-soft btn-sm" onclick="addProject()">添加</button>
+          </div>
+        </section>
+        <section class="settings-block electron-only hidden">
+          <h4>桌面模式</h4>
+          <p class="hint">关闭窗口收起到托盘，悬浮组件始终置顶。</p>
+          <label class="check"><input type="checkbox" id="minimizeToTrayEnabled" checked> 关闭时收起到托盘</label>
+          <label class="check"><input type="checkbox" id="alwaysOnTopEnabled"> 主窗口始终置顶</label>
+          <label class="check"><input type="checkbox" id="floatBallEnabled" checked> 显示悬浮球</label>
+          <div class="row-btns mt-8">
+            <button type="button" class="btn btn-soft btn-sm" onclick="showFloatPanel()">悬浮面板</button>
+            <button type="button" class="btn btn-soft btn-sm" onclick="minimizeToTray()">收起到托盘</button>
+          </div>
+        </section>
+        <section class="settings-block">
+          <h4>自动备份</h4>
+          <label class="check"><input type="checkbox" id="autoExportEnabled"> 每日自动导出 JSON</label>
+          <div class="field-grid mt-8">
+            <label>时间</label>
+            <select id="autoExportHour"></select>
+          </div>
+          <p class="hint" id="lastExportHint"></p>
+        </section>
+        <section class="settings-block">
+          <h4>WebDAV 同步</h4>
+          <p class="hint">坚果云等 WebDAV · 建议 EXE 版使用</p>
+          <div class="field"><label>地址</label><input type="text" id="webdavUrl" placeholder="https://dav.jianguoyun.com/dav/"></div>
+          <div class="field-grid">
+            <div class="field"><label>用户名</label><input type="text" id="webdavUser"></div>
+            <div class="field"><label>密码</label><input type="password" id="webdavPass"></div>
+          </div>
+          <div class="field"><label>远程文件</label><input type="text" id="webdavPath" value="liudang_sync.json"></div>
+          <label class="check"><input type="checkbox" id="autoSyncEnabled"> 启动时同步</label>
+          <div class="row-btns mt-8">
+            <button type="button" class="btn btn-soft btn-sm" onclick="webdavPush()">上传</button>
+            <button type="button" class="btn btn-soft btn-sm" onclick="webdavPull()">拉取</button>
+          </div>
+          <p class="hint" id="syncStatus"></p>
+        </section>
+        <button type="button" class="btn btn-3d full" onclick="saveSettings()">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="js/theme-sync.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

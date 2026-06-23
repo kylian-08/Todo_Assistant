@@ -1,0 +1,61 @@
+{
+  "name": "liudang-assistant",
+  "version": "1.0.0",
+  "description": "留档助手 - Bug / 待办 / 需求 / 灵感留档工具",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64 --dir",
+    "build:zip": "electron-builder --win --x64 --dir",
+    "build:installer": "electron-builder --win --x64"
+  },
+  "author": "kylian-08",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kylian-08/Todo_Assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kylian-08/Todo_Assistant/issues"
+  },
+  "homepage": "https://github.com/kylian-08/Todo_Assistant#readme",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.liudang.assistant",
+    "productName": "LiudangAssistant",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "float-ball.html",
+      "float-panel.html",
+      "css/**/*",
+      "js/**/*",
+      "assets/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "win": {
+      "target": [
+        { "target": "dir", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.png",
+      "executableName": "LiudangAssistant"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "留档助手",
+      "artifactName": "LiudangAssistant-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "LiudangAssistant-portable.exe"
+    }
+  }
+}

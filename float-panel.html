@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <title>快速留档</title>
+  <link rel="stylesheet" href="css/float.css">
+</head>
+<body class="panel-body">
+  <div class="panel-shell">
+    <div class="panel-titlebar">
+      <h2>快速留档</h2>
+      <div class="panel-titlebar-actions">
+        <button type="button" class="panel-icon-btn panel-icon-btn--main" id="btnMain" title="打开主窗口">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+          </svg>
+        </button>
+        <button type="button" class="panel-icon-btn panel-icon-btn--close" id="btnClose" title="隐藏面板">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="quick" onclick="switchTab('quick',this)">快速新建</button>
+      <button class="panel-tab" data-tab="recent" onclick="switchTab('recent',this)">最近留档</button>
+    </div>
+    <div class="panel-content" id="tabQuick">
+      <div class="type-row panel-field">
+        <button type="button" class="type-btn active" data-t="bug" onclick="setQuickType('bug',this)">Bug</button>
+        <button type="button" class="type-btn" data-t="todo" onclick="setQuickType('todo',this)">待办</button>
+        <button type="button" class="type-btn" data-t="req" onclick="setQuickType('req',this)">需求</button>
+        <button type="button" class="type-btn" data-t="idea" onclick="setQuickType('idea',this)">灵感</button>
+      </div>
+      <div class="panel-field">
+        <label>标题</label>
+        <input type="text" id="qTitle" placeholder="简要描述..." maxlength="200">
+      </div>
+      <div class="panel-field">
+        <label>内容</label>
+        <textarea id="qContent" placeholder="详细说明..."></textarea>
+      </div>
+      <div class="panel-field">
+        <label>项目</label>
+        <input type="text" id="qProject" value="默认项目">
+      </div>
+      <button type="button" class="panel-save" onclick="quickSave()">保存留档</button>
+    </div>
+    <div class="panel-content hidden" id="tabRecent">
+      <div class="recent-list" id="recentList"></div>
+    </div>
+    <div class="panel-footer">
+      <button type="button" class="panel-foot-btn" onclick="openMain()">打开主窗口</button>
+      <button type="button" class="panel-foot-btn" onclick="hidePanel()">隐藏面板</button>
+    </div>
+  </div>
+  <div class="panel-toast" id="panelToast"></div>
+  <script src="js/theme-sync.js"></script>
+  <script src="js/float-panel.js"></script>
+</body>
+</html>
