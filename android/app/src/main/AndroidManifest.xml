@@ -41,4 +41,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- 提醒类应用：精确闹钟，Android 13+ 系统自动授予，确保被杀/Doze 下到点必响 -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- 用于引导用户将应用加入电池优化白名单 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

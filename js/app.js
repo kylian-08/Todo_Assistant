@@ -326,6 +326,7 @@ function toggleReminderPanel() {
     const dt = document.getElementById('reminderDateTime');
     if (!dt.value) dt.value = defaultReminderDatetime();
     updateReminderPreview();
+    window.maybeShowReminderTips && window.maybeShowReminderTips();
   }
   scheduleDraftSave();
 }

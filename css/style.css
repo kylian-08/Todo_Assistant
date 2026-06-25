@@ -1023,6 +1023,8 @@ html.has-custom-bg .ambient { display: none; }
 .bg-preview.has-img { border-style: solid; }
 #bgBlur, #bgOpacity { width: 100%; accent-color: var(--accent); }
 #bgColor { width: 48px; height: 36px; border: 1px solid var(--glass-line); border-radius: 8px; background: none; padding: 2px; }
+.reminder-help { margin: 8px 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--text-2); line-height: 1.75; }
+.reminder-help li { margin-bottom: 4px; }
 
 /* ═══════════════════════════════════════════════════
    风格切换（桌面）— 组件已用变量，覆盖变量即换皮肤
