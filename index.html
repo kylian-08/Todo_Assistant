@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>TODO Assistant · 留档助手</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div id="appBg" aria-hidden="true"><div class="bg-img"></div></div>
   <div class="ambient">
     <div class="ambient-gradient"></div>
     <div class="shape-3d shape-ring" aria-hidden="true"></div>
@@ -36,21 +37,23 @@
         <span id="saveText">初始化</span>
       </div>
       <div class="seg-control view-toggle">
-        <button class="seg-btn active" id="btnListView" onclick="setViewMode('list')">列表</button>
-        <button class="seg-btn" id="btnKanbanView" onclick="setViewMode('kanban')">看板</button>
+        <button type="button" class="seg-btn active" id="btnListView">列表</button>
+        <button type="button" class="seg-btn" id="btnKanbanView">看板</button>
       </div>
-      <button class="icon-btn icon-btn--theme" id="themeBtn" onclick="toggleTheme()" title="切换深色模式"></button>
+      <button type="button" class="icon-btn icon-btn--theme" id="themeBtn" title="切换深色模式">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
       <button class="text-btn electron-only hidden" onclick="showFloatPanel()">悬浮面板</button>
       <button class="text-btn electron-only hidden" onclick="minimizeToTray()">收起到托盘</button>
-      <button class="icon-btn icon-btn--settings" id="settingsBtn" onclick="openSettings()" title="应用设置">
+      <button type="button" class="icon-btn icon-btn--settings" id="settingsBtn" title="应用设置">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/>
           <circle cx="12" cy="12" r="3"/>
         </svg>
       </button>
       <div class="seg-control compact">
-        <button class="seg-btn" onclick="exportData()">导出</button>
-        <button class="seg-btn" onclick="document.getElementById('importFile').click()">导入</button>
+        <button type="button" class="seg-btn" onclick="exportData()">导出</button>
+        <button type="button" class="seg-btn" onclick="document.getElementById('importFile').click()">导入</button>
         <input type="file" id="importFile" accept=".json" onchange="importData(event)">
       </div>
     </div>
@@ -67,10 +70,10 @@
         <div class="field">
           <label>类型</label>
           <div class="type-pills">
-            <button type="button" class="pill active" data-type="bug" onclick="setType('bug',this)">Bug</button>
-            <button type="button" class="pill" data-type="todo" onclick="setType('todo',this)">待办</button>
-            <button type="button" class="pill" data-type="req" onclick="setType('req',this)">需求</button>
-            <button type="button" class="pill" data-type="idea" onclick="setType('idea',this)">灵感</button>
+            <button type="button" class="pill active" data-type="bug">Bug</button>
+            <button type="button" class="pill" data-type="todo">待办</button>
+            <button type="button" class="pill" data-type="req">需求</button>
+            <button type="button" class="pill" data-type="idea">灵感</button>
           </div>
         </div>
         <div class="field-grid">
@@ -170,13 +173,13 @@
           </select>
         </div>
         <div class="filter-chips">
-          <button class="chip active" data-filter="all" onclick="setFilter('all',this)">全部</button>
-          <button class="chip" data-filter="bug" onclick="setFilter('bug',this)">Bug</button>
-          <button class="chip" data-filter="todo" onclick="setFilter('todo',this)">待办</button>
-          <button class="chip" data-filter="req" onclick="setFilter('req',this)">需求</button>
-          <button class="chip" data-filter="idea" onclick="setFilter('idea',this)">灵感</button>
-          <button class="chip" data-filter="pinned" onclick="setFilter('pinned',this)">置顶</button>
-          <button class="chip" data-filter="done" onclick="setFilter('done',this)">完成</button>
+          <button type="button" class="chip active" data-filter="all">全部</button>
+          <button type="button" class="chip" data-filter="bug">Bug</button>
+          <button type="button" class="chip" data-filter="todo">待办</button>
+          <button type="button" class="chip" data-filter="req">需求</button>
+          <button type="button" class="chip" data-filter="idea">灵感</button>
+          <button type="button" class="chip" data-filter="pinned">置顶</button>
+          <button type="button" class="chip" data-filter="done">完成</button>
         </div>
       </div>
       <div class="stat-cards" id="statCards"></div>
@@ -201,6 +204,37 @@
     <div class="modal-sheet glass-3d wide" onclick="event.stopPropagation()">
       <div class="modal-head"><h3>设置</h3><button class="modal-x" onclick="closeSettings()">×</button></div>
       <div class="modal-body settings-body">
+        <section class="settings-block">
+          <h4>外观</h4>
+          <label class="set-label">明暗主题</label>
+          <div class="seg-control appearance-seg" id="themeModeSeg">
+            <button type="button" class="seg-btn" data-thememode="light">浅色</button>
+            <button type="button" class="seg-btn" data-thememode="dark">深色</button>
+            <button type="button" class="seg-btn" data-thememode="auto">跟随系统</button>
+          </div>
+          <label class="set-label mt-8">界面风格<span class="set-hint-inline">（当前设备）</span></label>
+          <div class="seg-control appearance-seg" id="appStyleSeg">
+            <button type="button" class="seg-btn" data-appstyle="glass">玻璃拟态</button>
+            <button type="button" class="seg-btn" data-appstyle="magazine">极简杂志</button>
+            <button type="button" class="seg-btn" data-appstyle="flat">扁平素色</button>
+          </div>
+          <label class="set-label mt-8">背景图</label>
+          <div class="bg-row">
+            <button type="button" class="btn btn-soft btn-sm" onclick="document.getElementById('bgImageInput').click()">选择图片</button>
+            <button type="button" class="btn btn-soft btn-sm" onclick="clearBgImage()">清除背景图</button>
+            <input type="file" id="bgImageInput" accept="image/*" class="hidden" onchange="handleBgImage(event)">
+          </div>
+          <div class="bg-preview" id="bgPreview"></div>
+          <label class="set-label mt-8">背景模糊 <span class="set-val" id="bgBlurVal">0px</span></label>
+          <input type="range" id="bgBlur" min="0" max="40" step="1" value="0" oninput="onBgControlInput()">
+          <label class="set-label mt-8">背景透明度 <span class="set-val" id="bgOpacityVal">100%</span></label>
+          <input type="range" id="bgOpacity" min="0" max="100" step="1" value="100" oninput="onBgControlInput()">
+          <label class="set-label mt-8">背景底色</label>
+          <div class="bg-row">
+            <input type="color" id="bgColor" value="#f0f4fb" oninput="onBgControlInput()">
+            <button type="button" class="btn btn-soft btn-sm" onclick="clearBgColor()">无底色</button>
+          </div>
+        </section>
         <section class="settings-block">
           <h4>项目</h4>
           <div id="projectManage" class="project-manage"></div>

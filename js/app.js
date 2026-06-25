@@ -37,6 +37,13 @@ const BUG_TEMPLATE = `## 环境
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
+  themeMode: 'light',          // light | dark | auto
+  desktopStyle: 'glass',       // glass | magazine | flat
+  mobileStyle: 'magazine',     // glass | magazine | flat
+  bgImage: '',                 // dataURL
+  bgBlur: 0,                   // px
+  bgOpacity: 1,                // 0..1
+  bgColor: '',                 // hex 或空
   viewMode: 'list',
   projects: ['默认项目'],
   autoExport: false,
@@ -104,7 +111,8 @@ async function loadSettings() {
     const row = await idb(SETTINGS_STORE, 'readonly', s => s.get('app'));
     if (row?.value) settings = { ...DEFAULT_SETTINGS, ...row.value };
   } catch {}
-  applyTheme(settings.theme);
+  if (!settings.themeMode) settings.themeMode = settings.theme || 'light';
+  applyAppearance();
   setViewMode(settings.viewMode, true);
 }
 
@@ -496,16 +504,176 @@ function updateSaveStatus(state) {
   }
 }
 
+let _prefersDark = null;
+
+function resolveTheme(mode) {
+  if (mode === 'auto') {
+    if (!_prefersDark) _prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    return _prefersDark.matches ? 'dark' : 'light';
+  }
+  return mode === 'dark' ? 'dark' : 'light';
+}
+
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   updateThemeButton(theme);
   window.electronAPI?.broadcastTheme?.(theme);
 }
 
-function toggleTheme() {
-  settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
-  applyTheme(settings.theme);
+function currentStyleKey() {
+  return document.documentElement.classList.contains('is-mobile') ? 'mobileStyle' : 'desktopStyle';
+}
+
+/* 统一外观：主题 + 风格 + 自定义背景。两端通用 */
+function applyAppearance() {
+  const mode = settings.themeMode || settings.theme || 'light';
+  const theme = resolveTheme(mode);
+  settings.theme = theme;
+  applyTheme(theme);
+
+  const style = settings[currentStyleKey()] || 'glass';
+  document.documentElement.setAttribute('data-style', style);
+
+  // 跟随系统：监听变化
+  if (mode === 'auto' && _prefersDark && !_prefersDark.__bound) {
+    _prefersDark.__bound = true;
+    _prefersDark.addEventListener('change', () => {
+      if ((settings.themeMode || 'light') === 'auto') applyAppearance();
+    });
+  }
+
+  applyCustomBackground();
+}
+
+function applyCustomBackground() {
+  const root = document.documentElement;
+  const hasImg = !!settings.bgImage;
+  const hasColor = !!settings.bgColor;
+  root.classList.toggle('has-custom-bg', hasImg || hasColor);
+  root.style.setProperty('--app-bg-image', hasImg ? `url("${settings.bgImage}")` : 'none');
+  root.style.setProperty('--app-bg-blur', (settings.bgBlur || 0) + 'px');
+  root.style.setProperty('--app-bg-opacity', settings.bgOpacity == null ? 1 : settings.bgOpacity);
+  root.style.setProperty('--app-bg-color', settings.bgColor || 'transparent');
+}
+
+function setThemeMode(mode) {
+  settings.themeMode = mode;
+  applyAppearance();
   saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+function setAppStyle(style) {
+  settings[currentStyleKey()] = style;
+  applyAppearance();
+  saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+function toggleTheme() {
+  const cur = settings.themeMode || settings.theme || 'light';
+  settings.themeMode = resolveTheme(cur) === 'dark' ? 'light' : 'dark';
+  applyAppearance();
+  saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+/* ── 自定义背景控件 ── */
+function syncAppearanceUI() {
+  const mode = settings.themeMode || 'light';
+  document.querySelectorAll('#themeModeSeg [data-thememode]').forEach(b =>
+    b.classList.toggle('active', b.dataset.thememode === mode));
+  const style = settings[currentStyleKey()] || 'glass';
+  document.querySelectorAll('#appStyleSeg [data-appstyle]').forEach(b =>
+    b.classList.toggle('active', b.dataset.appstyle === style));
+
+  const blur = settings.bgBlur || 0;
+  const op = settings.bgOpacity == null ? 1 : settings.bgOpacity;
+  const blurEl = document.getElementById('bgBlur');
+  const opEl = document.getElementById('bgOpacity');
+  const colorEl = document.getElementById('bgColor');
+  if (blurEl) blurEl.value = blur;
+  if (opEl) opEl.value = Math.round(op * 100);
+  if (colorEl && settings.bgColor) colorEl.value = settings.bgColor;
+  const bv = document.getElementById('bgBlurVal');
+  const ov = document.getElementById('bgOpacityVal');
+  if (bv) bv.textContent = blur + 'px';
+  if (ov) ov.textContent = Math.round(op * 100) + '%';
+  const prev = document.getElementById('bgPreview');
+  if (prev) {
+    if (settings.bgImage) {
+      prev.style.backgroundImage = `url("${settings.bgImage}")`;
+      prev.classList.add('has-img');
+    } else {
+      prev.style.backgroundImage = 'none';
+      prev.classList.remove('has-img');
+    }
+  }
+}
+
+function onBgControlInput() {
+  const blurEl = document.getElementById('bgBlur');
+  const opEl = document.getElementById('bgOpacity');
+  const colorEl = document.getElementById('bgColor');
+  settings.bgBlur = parseInt(blurEl.value, 10) || 0;
+  settings.bgOpacity = (parseInt(opEl.value, 10) || 0) / 100;
+  settings.bgColor = colorEl.value;
+  applyCustomBackground();
+  saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+function clearBgColor() {
+  settings.bgColor = '';
+  applyCustomBackground();
+  saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+function clearBgImage() {
+  settings.bgImage = '';
+  applyCustomBackground();
+  saveSettingsToDB();
+  syncAppearanceUI();
+}
+
+async function handleBgImage(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+  try {
+    const dataUrl = await compressImage(file, 1920, 0.82);
+    settings.bgImage = dataUrl;
+    applyCustomBackground();
+    await saveSettingsToDB();
+    syncAppearanceUI();
+    toast('背景图已设置');
+  } catch (e) {
+    toast('图片读取失败');
+  }
+}
+
+function compressImage(file, maxW, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function setViewMode(mode, silent) {
@@ -1070,7 +1238,7 @@ function renderList() {
     return `
       <article class="card ${r.done ? 'done-card' : ''} ${r.pinned ? 'pinned' : ''}">
         <div class="card-header">
-              <button class="pin-btn ${r.pinned ? 'active' : ''}" onclick="togglePin('${r.id}')" title="置顶">${r.pinned ? '◆' : '◇'}</button>
+              <button type="button" class="pin-btn ${r.pinned ? 'active' : ''}" onclick="togglePin('${r.id}')" title="置顶">${r.pinned ? '◆' : '◇'}</button>
           <div class="card-title-wrap">
             <div class="card-title">${esc(r.title)}</div>
             ${r.project ? `<div class="card-project">📁 ${esc(r.project)}</div>` : ''}
@@ -1086,19 +1254,19 @@ function renderList() {
         ${tags ? `<div class="tags-row">${tags}</div>` : ''}
         ${r.content ? `
           <div class="card-body md-rendered ${long ? 'collapsed' : ''}" id="body-${r.id}">${mdContent}</div>
-          ${long ? `<button class="expand-btn" onclick="toggleExpand(this,'${r.id}')">展开全文</button>` : ''}
+          ${long ? `<button type="button" class="expand-btn" onclick="toggleExpand(this,'${r.id}')">展开全文</button>` : ''}
         ` : ''}
         ${renderAttachmentsHtml(r.attachments, r.id)}
         <div class="card-meta">
           <span>${formatDate(r.createdAt)}</span>
           ${(r.history||[]).length ? `<span>${r.history.length} 个历史版本</span>` : ''}
           <div class="card-actions">
-            <button onclick="copyEntry('${r.id}')">复制</button>
-            <button onclick="openHistoryModal('${r.id}')">历史</button>
-            ${r.reminderAt && !r.reminderNotified && !r.done ? `<button onclick="clearRecordReminder('${r.id}')">取消提醒</button>` : ''}
-            <button onclick="toggleDone('${r.id}')">${r.done ? '重开' : '完成'}</button>
-            <button onclick="editEntry('${r.id}')">编辑</button>
-            <button class="danger" onclick="deleteEntry('${r.id}')">删除</button>
+            <button type="button" onclick="copyEntry('${r.id}')">复制</button>
+            <button type="button" onclick="openHistoryModal('${r.id}')">历史</button>
+            ${r.reminderAt && !r.reminderNotified && !r.done ? `<button type="button" onclick="clearRecordReminder('${r.id}')">取消提醒</button>` : ''}
+            <button type="button" onclick="toggleDone('${r.id}')">${r.done ? '重开' : '完成'}</button>
+            <button type="button" onclick="editEntry('${r.id}')">编辑</button>
+            <button type="button" class="danger" onclick="deleteEntry('${r.id}')">删除</button>
           </div>
         </div>
       </article>`;
@@ -1299,7 +1467,23 @@ function openSettings() {
   document.getElementById('lastExportHint').textContent = settings.lastAutoExportDate
     ? `上次自动导出: ${settings.lastAutoExportDate}` : '尚未自动导出';
   refreshProjectUI();
+  bindAppearanceControls();
+  syncAppearanceUI();
   document.getElementById('settingsModal').classList.add('open');
+}
+
+let _appearanceBound = false;
+function bindAppearanceControls() {
+  if (_appearanceBound) return;
+  _appearanceBound = true;
+  document.getElementById('themeModeSeg')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-thememode]');
+    if (b) setThemeMode(b.dataset.thememode);
+  });
+  document.getElementById('appStyleSeg')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-appstyle]');
+    if (b) setAppStyle(b.dataset.appstyle);
+  });
 }
 
 function closeSettings() {
@@ -1378,6 +1562,25 @@ function bindEvents() {
     hourSel.innerHTML += `<option value="${h}">${String(h).padStart(2,'0')}:00</option>`;
   }
   hourSel.value = settings.autoExportHour;
+
+  bindMobileControls();
+}
+
+function bindMobileControls() {
+  document.querySelector('.type-pills')?.addEventListener('click', (e) => {
+    const pill = e.target.closest('.pill[data-type]');
+    if (pill) setType(pill.dataset.type, pill);
+  });
+
+  document.querySelector('.filter-chips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip[data-filter]');
+    if (chip) setFilter(chip.dataset.filter, chip);
+  });
+
+  document.getElementById('btnListView')?.addEventListener('click', () => setViewMode('list'));
+  document.getElementById('btnKanbanView')?.addEventListener('click', () => setViewMode('kanban'));
+  document.getElementById('themeBtn')?.addEventListener('click', () => toggleTheme());
+  document.getElementById('settingsBtn')?.addEventListener('click', () => openSettings());
 }
 
 /* ── Init ── */
