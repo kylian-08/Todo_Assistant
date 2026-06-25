@@ -6,7 +6,12 @@
  * - 不影响桌面：本文件只在构建 Android 包时注入
  */
 (function () {
-  const mq = window.matchMedia('(max-width: 768px)');
+  // 本文件仅注入到 Android 包，且在 app.js 之前加载：
+  // 先打上 is-mobile，确保 app.js 初始化时按移动端风格(mobileStyle)应用外观
+  document.documentElement.classList.add('is-mobile');
+  if (!document.documentElement.getAttribute('data-mtab')) {
+    document.documentElement.setAttribute('data-mtab', 'list');
+  }
 
   let openingSheet = false;
   let booted = false;
@@ -277,7 +282,14 @@
   }
 
   /* ---------- Tab 切换 ---------- */
-  function setTab(tab) {
+  const tabHistory = [];
+
+  function setTab(tab, fromBack) {
+    const cur = document.documentElement.getAttribute('data-mtab');
+    if (!fromBack && cur && cur !== tab) {
+      tabHistory.push(cur);
+      if (tabHistory.length > 20) tabHistory.shift();
+    }
     document.documentElement.setAttribute('data-mtab', tab);
     document.querySelectorAll('.m-tab').forEach((b) =>
       b.classList.toggle('active', b.dataset.mtab === tab)
@@ -419,10 +431,51 @@
     window.applyAppearance && window.applyAppearance();
   }
 
-  function disableMobile() {
-    document.documentElement.classList.remove('is-mobile');
-    window.applyAppearance && window.applyAppearance();
+  /* ---------- Android 返回键：关闭弹层 / 返回上一页，不直接退出 ---------- */
+  function handleBack() {
+    if (!isMobile()) return false;
+    // 1. 底部录入 sheet
+    const backdrop = document.getElementById('mSheetBackdrop');
+    if (backdrop && backdrop.classList.contains('open')) {
+      closeSheet();
+      return true;
+    }
+    // 2. 设置 / 历史 / 图片预览（按显示优先级关闭，回到进入前的页面）
+    const sm = document.getElementById('settingsModal');
+    if (sm && sm.classList.contains('open')) {
+      window.closeSettings ? window.closeSettings() : sm.classList.remove('open');
+      return true;
+    }
+    const hm = document.getElementById('historyModal');
+    if (hm && hm.classList.contains('open')) {
+      window.closeHistoryModal ? window.closeHistoryModal() : hm.classList.remove('open');
+      return true;
+    }
+    const lb = document.getElementById('lightbox');
+    if (lb && lb.classList.contains('open')) {
+      window.closeLightbox ? window.closeLightbox() : lb.classList.remove('open');
+      return true;
+    }
+    // 3. 其它任意打开的浮层
+    const anyOpen = document.querySelector('.modal-overlay.open');
+    if (anyOpen) {
+      anyOpen.classList.remove('open');
+      return true;
+    }
+    // 4. 标签返回上一页
+    const cur = document.documentElement.getAttribute('data-mtab') || 'list';
+    if (tabHistory.length) {
+      setTab(tabHistory.pop(), true);
+      return true;
+    }
+    if (cur !== 'list') {
+      setTab('list', true);
+      return true;
+    }
+    // 5. 已在主页：返回 false，由原生最小化到后台（不退出）
+    return false;
   }
+  window.__mobileHandleBack = handleBack;
 
   function boot() {
     if (booted) return;
@@ -434,12 +487,9 @@
     };
     bindControls();
     bindKanban();
-    if (mq.matches) enableMobile();
+    // 本文件仅注入到 Android 包中，运行环境必为移动端，恒启用移动 UI
+    enableMobile();
     tryHook();
-    mq.addEventListener('change', (e) => {
-      if (e.matches) enableMobile();
-      else disableMobile();
-    });
   }
 
   if (document.readyState === 'loading') {

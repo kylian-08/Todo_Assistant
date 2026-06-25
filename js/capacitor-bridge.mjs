@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { App } from '@capacitor/app';
 
 const TYPE_LABELS = { bug: 'Bug', todo: '待办', req: '需求', idea: '灵感' };
 
@@ -84,11 +85,49 @@ function setupListeners() {
   });
 }
 
+/* 返回键：优先关闭弹层 / 返回上一页，最后最小化到后台（不退出） */
+function setupBackButton() {
+  App.addListener('backButton', () => {
+    let handled = false;
+    try {
+      handled = !!(window.__mobileHandleBack && window.__mobileHandleBack());
+    } catch (e) {
+      handled = false;
+    }
+    if (!handled) {
+      // 顶层返回：最小化到后台而不是退出，保留提醒与状态
+      App.minimizeApp();
+    }
+  });
+}
+
+/* 首次开启提醒时的可靠性引导（仅原生、仅一次） */
+function maybeShowReminderTips() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if (localStorage.getItem('reminderTipsShown') === '1') return;
+    localStorage.setItem('reminderTipsShown', '1');
+  } catch (e) {}
+  const msg =
+    '为确保到点准时提醒（即使应用在后台或被清理）：\n\n' +
+    '1. 已申请「精确闹钟」权限，系统会按时唤醒；\n' +
+    '2. 建议在 系统设置 → 应用 → TODO Assistant → 电池 中，\n' +
+    '   选择「无限制 / 允许后台活动」；\n' +
+    '3. 小米 / 华为 / OPPO / vivo 等机型，请在「自启动管理」\n' +
+    '   里允许本应用自启动。\n\n' +
+    '（该提示只出现一次，可在「设置 → 提醒可靠性」再次查看）';
+  setTimeout(() => {
+    try { window.alert(msg); } catch (e) {}
+  }, 200);
+}
+
 async function init() {
   if (!Capacitor.isNativePlatform()) return;
   setupListeners();
+  setupBackButton();
   await ensurePermission();
 }
 
 window.capacitorReminders = { sync, init, isNative: () => Capacitor.isNativePlatform() };
+window.maybeShowReminderTips = maybeShowReminderTips;
 init();
