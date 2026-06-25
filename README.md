@@ -4,7 +4,7 @@
 
 **本地优先的 Bug / 待办 / 需求 / 灵感 归档工作台**
 
-极简毛玻璃界面 · Markdown · 看板 · 定时提醒 · WebDAV · Electron 桌面增强
+多风格界面（玻璃 / 杂志 / 扁平）· 自定义背景 · Markdown · 看板 · 定时提醒 · WebDAV · 桌面 & Android
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-4f6bed?style=for-the-badge)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
@@ -30,6 +30,8 @@
 | **草稿** | 表单自动保存，意外关闭可恢复 |
 | **定时提醒** | 指定时间或「N 分钟后」，到期 Windows 系统通知 |
 | **同步备份** | JSON 导入导出，WebDAV（坚果云等），每日自动导出 |
+| **外观定制** | 明暗主题（浅 / 深 / 跟随系统）、三套界面风格（玻璃拟态 / 极简杂志 / 扁平素色）、自定义背景图与模糊 / 透明 / 底色，桌面与移动端通用 |
+| **移动端** | 底部 Tab（列表 / 看板 / 日历 / 统计）+ FAB 新建、底部弹出表单、看板状态切换、日历直接建计划、Android 原生提醒 |
 | **桌面增强** | 系统托盘、悬浮球、快捷留档面板、深色模式 |
 
 ---
@@ -129,9 +131,15 @@ TODO_Assistant/
 ├── float-panel.html    # 快捷留档面板
 ├── css/                # 样式（毛玻璃 / 深色模式）
 ├── js/
-│   ├── app.js          # 核心业务逻辑
+│   ├── app.js          # 核心业务逻辑 + 外观系统（主题 / 风格 / 背景）
+│   ├── mobile-ui.js    # 移动端交互层（Tab / FAB / 底部表单 / 日历）
 │   ├── markdown.js     # Markdown 渲染
 │   └── theme-sync.js   # 跨窗口主题同步
+├── css/
+│   ├── style.css       # 桌面样式 + 三套风格变量
+│   └── mobile.css      # 移动端样式（仅 html.is-mobile 生效）
+├── mobile/
+│   └── shell.html      # 移动端外壳（构建时注入）
 ├── electron/
 │   ├── main.js         # 托盘 / 通知 / 悬浮窗
 │   └── preload.js      # 安全 IPC 桥接
@@ -182,3 +190,19 @@ npm run cap:open:android
 ```
 
 详见 [ANDROID.md](ANDROID.md)
+
+### 移动端特性（v2.0.0）
+
+- 底部 Tab Bar（列表 / 看板 / 日历 / 统计）+ 右下角 FAB 新建
+- 底部弹出式录入表单，看板状态切换按钮（替代触屏拖拽）
+- 日历视图：标记有计划的日期，点选查看或直接新建当日计划
+- Android 原生定时提醒（Capacitor Local Notifications）
+- 三套界面风格 + 自定义背景，与桌面共用同一套外观系统
+
+发布说明见 [docs/RELEASE_NOTES_v2.0.0.md](docs/RELEASE_NOTES_v2.0.0.md)，完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+---
+
+## 📜 更新日志
+
+完整版本历史见 **[CHANGELOG.md](CHANGELOG.md)**。最新版本 **v2.0.0**：移动端重构 + 桌面/移动通用的外观系统（主题 / 风格 / 自定义背景）。
