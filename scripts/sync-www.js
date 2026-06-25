@@ -42,8 +42,19 @@ html = html.replace(
 );
 html = html.replace(
   '<script src="js/app.js"></script>',
-  '<script src="js/capacitor-bridge.js"></script>\n  <script src="js/app.js"></script>'
+  '<script src="js/capacitor-bridge.js"></script>\n  <script src="js/app.js"></script>\n  <script src="js/mobile-ui.js"></script>'
 );
+
+// 注入移动端外壳 DOM（底部 tabbar / FAB / 新建 sheet）
+const shellPath = path.join(ROOT, 'mobile', 'shell.html');
+if (fs.existsSync(shellPath)) {
+  const shell = fs.readFileSync(shellPath, 'utf8');
+  html = html.replace(
+    '<div class="toast" id="toast"></div>',
+    shell + '\n\n  <div class="toast" id="toast"></div>'
+  );
+}
+
 fs.writeFileSync(indexPath, html);
 
 console.log('Synced web assets -> www/');
