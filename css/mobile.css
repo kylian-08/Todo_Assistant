@@ -87,6 +87,7 @@ html.is-mobile .cal-cell {
 html.is-mobile .ambient,
 html.is-mobile .topbar,
 html.is-mobile .electron-only,
+html.is-mobile #calendarView,
 html.is-mobile .composer .section-label,
 html.is-mobile .composer .form-foot {
   display: none !important;

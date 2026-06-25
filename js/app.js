@@ -678,18 +678,164 @@ function compressImage(file, maxW, quality) {
 }
 
 function setViewMode(mode, silent) {
+  // 桌面日历视图仅用于桌面；移动端有独立日历 Tab，避免误用导致列表被隐藏
+  if (mode === 'calendar' && document.documentElement.classList.contains('is-mobile')) mode = 'list';
   settings.viewMode = mode;
+  document.documentElement.setAttribute('data-view', mode);
   document.getElementById('btnListView').classList.toggle('active', mode === 'list');
   document.getElementById('btnKanbanView').classList.toggle('active', mode === 'kanban');
+  document.getElementById('btnCalendarView')?.classList.toggle('active', mode === 'calendar');
   document.getElementById('cardList').classList.toggle('hidden', mode !== 'list');
   document.getElementById('kanbanBoard').classList.toggle('hidden', mode !== 'kanban');
+  document.getElementById('calendarView')?.classList.toggle('hidden', mode !== 'calendar');
   if (!silent) saveSettingsToDB();
   renderView();
 }
 
 function renderView() {
   if (settings.viewMode === 'kanban') renderKanban();
+  else if (settings.viewMode === 'calendar') renderDesktopCalendar();
   else renderList();
+}
+
+/* ── 日历视图（桌面） ── */
+const calState = { view: calStartOfMonth(new Date()), selected: calStripTime(new Date()) };
+
+function calStripTime(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function calStartOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function calSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function calPad2(n) { return String(n).padStart(2, '0'); }
+
+function calRecordDate(r) {
+  const raw = r.reminderAt || r.createdAt;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function calRecordsOnDay(day) {
+  return recordsCache
+    .filter(r => { const d = calRecordDate(r); return d && calSameDay(d, day); })
+    .sort((a, b) => new Date(a.reminderAt || a.createdAt) - new Date(b.reminderAt || b.createdAt));
+}
+
+function renderDesktopCalendar() {
+  renderCalGrid();
+  renderCalDayList();
+}
+
+function renderCalGrid() {
+  const grid = document.getElementById('calGridDesktop');
+  const titleEl = document.getElementById('calTitleDesktop');
+  if (!grid || !titleEl) return;
+
+  const y = calState.view.getFullYear();
+  const m = calState.view.getMonth();
+  titleEl.textContent = `${y}年${m + 1}月`;
+
+  const startDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = calStripTime(new Date());
+
+  let html = '';
+  for (let i = 0; i < 42; i++) {
+    const idx = i - startDay;
+    const cellDate = new Date(y, m, idx + 1);
+    const muted = idx < 0 || idx >= daysInMonth;
+    const ds = calStripTime(cellDate);
+    const recs = calRecordsOnDay(ds);
+    const types = [...new Set(recs.map(r => r.type).filter(Boolean))].slice(0, 4);
+    const dots = recs.length
+      ? `<span class="cal-dots">${types.map(t => `<i class="t-${t}"></i>`).join('')}</span>`
+      : '';
+    const cls = [
+      'cal-cell',
+      muted ? 'muted' : '',
+      calSameDay(ds, today) ? 'today' : '',
+      calSameDay(ds, calState.selected) ? 'selected' : '',
+    ].filter(Boolean).join(' ');
+    html += `<button type="button" class="${cls}" data-cal="${ds.getFullYear()}-${ds.getMonth()}-${ds.getDate()}"><span class="cal-num">${cellDate.getDate()}</span>${dots}</button>`;
+  }
+  grid.innerHTML = html;
+}
+
+function renderCalDayList() {
+  const listEl = document.getElementById('calDayListDesktop');
+  const titleEl = document.getElementById('calDayTitleDesktop');
+  if (!listEl || !titleEl) return;
+
+  const day = calState.selected;
+  const today = calStripTime(new Date());
+  titleEl.textContent = calSameDay(day, today)
+    ? `今天 · ${day.getMonth() + 1}月${day.getDate()}日`
+    : `${day.getFullYear()}年${day.getMonth() + 1}月${day.getDate()}日`;
+
+  const recs = calRecordsOnDay(day);
+  if (!recs.length) {
+    listEl.innerHTML = `<div class="cal-empty">这一天还没有计划，点「+ 新建计划」添加</div>`;
+    return;
+  }
+
+  listEl.innerHTML = recs.map(r => {
+    const at = r.reminderAt ? new Date(r.reminderAt) : null;
+    const time = at ? `${calPad2(at.getHours())}:${calPad2(at.getMinutes())}` : '全天';
+    const sub = [TYPE_LABELS[r.type], STATUS_LABELS[r.status], r.project].filter(Boolean).join(' · ');
+    return `
+      <div class="cal-plan${r.done ? ' done' : ''}" data-edit="${r.id}">
+        <span class="cal-plan-bar t-${r.type}"></span>
+        <div class="cal-plan-main">
+          <div class="cal-plan-title">${esc(r.title || '(无标题)')}</div>
+          <div class="cal-plan-sub">${esc(sub)}</div>
+        </div>
+        <span class="cal-plan-time">${time}</span>
+      </div>`;
+  }).join('');
+}
+
+function calGoToday() {
+  calState.view = calStartOfMonth(new Date());
+  calState.selected = calStripTime(new Date());
+  renderDesktopCalendar();
+}
+function calPrevMonth() {
+  calState.view = new Date(calState.view.getFullYear(), calState.view.getMonth() - 1, 1);
+  renderCalGrid();
+}
+function calNextMonth() {
+  calState.view = new Date(calState.view.getFullYear(), calState.view.getMonth() + 1, 1);
+  renderCalGrid();
+}
+function calSelectDay(date) {
+  calState.selected = calStripTime(date);
+  renderDesktopCalendar();
+}
+
+// 从日历新建：复用左侧录入栏，预填选中日的提醒时间
+function openComposerForDate(date) {
+  resetForm();
+  const at = new Date(date);
+  const now = new Date();
+  if (calSameDay(calStripTime(at), calStripTime(now))) at.setTime(now.getTime() + 60 * 60 * 1000);
+  else at.setHours(9, 0, 0, 0);
+
+  const enabled = document.getElementById('reminderEnabled');
+  const panel = document.getElementById('reminderPanel');
+  const dt = document.getElementById('reminderDateTime');
+  if (enabled && dt) {
+    enabled.checked = true;
+    panel && panel.classList.remove('hidden');
+    reminderMode = 'absolute';
+    document.querySelectorAll('.reminder-mode .mini-seg-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === 'absolute'));
+    document.getElementById('reminderAbsoluteRow')?.classList.remove('hidden');
+    document.getElementById('reminderRelativeRow')?.classList.add('hidden');
+    dt.value = toDatetimeLocalValue(at);
+    updateReminderPreview();
+  }
+  const composer = document.querySelector('.composer');
+  if (composer) composer.scrollTop = 0;
+  document.getElementById('title')?.focus();
 }
 
 /* ── Projects ── */
@@ -1551,6 +1697,14 @@ function bindEvents() {
       e.preventDefault();
       document.getElementById('entryForm').requestSubmit();
     }
+    if (e.key === 'Escape') {
+      const lb = document.getElementById('lightbox');
+      const hm = document.getElementById('historyModal');
+      const sm = document.getElementById('settingsModal');
+      if (lb?.classList.contains('open')) { closeLightbox(); return; }
+      if (hm?.classList.contains('open')) { closeHistoryModal(); return; }
+      if (sm?.classList.contains('open')) { closeSettings(); return; }
+    }
   });
 
   window.addEventListener('beforeunload', e => {
@@ -1580,6 +1734,21 @@ function bindMobileControls() {
 
   document.getElementById('btnListView')?.addEventListener('click', () => setViewMode('list'));
   document.getElementById('btnKanbanView')?.addEventListener('click', () => setViewMode('kanban'));
+  document.getElementById('btnCalendarView')?.addEventListener('click', () => setViewMode('calendar'));
+  document.getElementById('calPrevDesktop')?.addEventListener('click', calPrevMonth);
+  document.getElementById('calNextDesktop')?.addEventListener('click', calNextMonth);
+  document.getElementById('calTodayDesktop')?.addEventListener('click', calGoToday);
+  document.getElementById('calGridDesktop')?.addEventListener('click', e => {
+    const cell = e.target.closest('.cal-cell');
+    if (!cell || !cell.dataset.cal) return;
+    const [y, m, d] = cell.dataset.cal.split('-').map(Number);
+    calSelectDay(new Date(y, m, d));
+  });
+  document.getElementById('calDayListDesktop')?.addEventListener('click', e => {
+    const plan = e.target.closest('.cal-plan');
+    if (plan?.dataset.edit) editEntry(plan.dataset.edit);
+  });
+  document.getElementById('calAddBtnDesktop')?.addEventListener('click', () => openComposerForDate(calState.selected));
   document.getElementById('themeBtn')?.addEventListener('click', () => toggleTheme());
   document.getElementById('settingsBtn')?.addEventListener('click', () => openSettings());
 }
