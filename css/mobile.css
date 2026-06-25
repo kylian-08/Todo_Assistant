@@ -1,31 +1,1555 @@
-/* Android / 移动端布局优化 */
-@media (max-width: 960px) {
-  .composer, .feed {
-    max-height: none;
-    min-height: auto;
-  }
-  .topbar-actions { gap: 6px; }
-  .text-btn { display: none; }
-  .stat-cards { grid-template-columns: repeat(3, 1fr); }
-  .card-actions { flex-wrap: wrap; }
+/* ============================================================
+   TODO Assistant · 移动端 UI（仅 Android/窄屏，桌面不加载）
+   风格：极简杂志（editorial minimal）— 纸感背景 + hairline 细线
+        + 衬线标题 + 克制配色，无毛玻璃 / 无渐变 / 无阴影堆叠
+   交互：底部 Tab Bar（列表/看板/统计/日历）+ FAB 新建 sheet
+   所有规则以 html.is-mobile 为前缀，避免影响桌面
+   ============================================================ */
+
+:root {
+  --m-top-h: 56px;
+  --m-tab-h: 60px;
+  --m-radius: 4px;
+  --m-radius-lg: 6px;
+
+  --m-bg: #f4f1ea;
+  --m-surface: #ffffff;
+  --m-surface-2: #faf8f3;
+  --m-line: #e6e1d6;
+  --m-line-strong: #d6cfbf;
+
+  --m-text: #1f1c17;
+  --m-text-2: #6a655c;
+  --m-text-3: #9c968a;
+
+  --m-ink: #1f1c17;        /* 主交互 / 选中（墨黑） */
+  --m-accent: #bf4a32;     /* 点缀（赭红） */
+
+  --m-bug: #b5462f;
+  --m-todo: #9a7415;
+  --m-req: #2f7d5b;
+  --m-idea: #6b54a3;
+
+  --font-serif: Georgia, "Times New Roman", "Songti SC", "Noto Serif SC", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", system-ui, sans-serif;
 }
 
-@media (max-width: 480px) {
-  .app-shell { padding: 8px 10px 14px; }
-  .topbar { padding: 8px 12px; }
-  .brand-text strong { font-size: .85rem; }
-  .seg-control.compact { display: none; }
-  .filter-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .filter-chips .chip { flex-shrink: 0; }
-  .stat-cards { grid-template-columns: repeat(2, 1fr); }
-  .form-foot { flex-direction: column; }
-  .form-foot .btn { width: 100%; }
+html.is-mobile[data-theme="dark"] {
+  --m-bg: #16140f;
+  --m-surface: #201e17;
+  --m-surface-2: #1b1913;
+  --m-line: #332f25;
+  --m-line-strong: #423d30;
+
+  --m-text: #ece7db;
+  --m-text-2: #a8a294;
+  --m-text-3: #736d5f;
+
+  --m-ink: #ece7db;
+  --m-accent: #e0664a;
+
+  --m-bug: #d4664f;
+  --m-todo: #c79a3e;
+  --m-req: #5aa982;
+  --m-idea: #9683c9;
 }
 
-/* Capacitor 安全区（刘海屏） */
-@supports (padding: env(safe-area-inset-top)) {
-  .app-shell {
-    padding-top: calc(12px + env(safe-area-inset-top));
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  }
+/* ---------- 基础 ---------- */
+html.is-mobile,
+html.is-mobile body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+  font-family: var(--font-sans);
+}
+
+html.is-mobile body {
+  background: var(--m-bg);
+  color: var(--m-text);
+}
+
+html.is-mobile * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.is-mobile button,
+html.is-mobile .chip,
+html.is-mobile .pill,
+html.is-mobile .m-tab,
+html.is-mobile .m-icon,
+html.is-mobile .m-fab,
+html.is-mobile .cal-cell {
+  touch-action: manipulation;
+}
+
+/* 关闭桌面专属/装饰元素 */
+html.is-mobile .ambient,
+html.is-mobile .topbar,
+html.is-mobile .electron-only,
+html.is-mobile .composer .section-label,
+html.is-mobile .composer .form-foot {
+  display: none !important;
+}
+
+/* ---------- 顶层布局 ---------- */
+html.is-mobile .app-shell {
+  display: block;
+  padding: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+html.is-mobile .workspace {
+  display: block;
+  height: 100%;
+  margin: 0;
+  gap: 0;
+}
+
+html.is-mobile .feed {
+  display: block;
+  height: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(var(--m-top-h) + env(safe-area-inset-top, 0px) + 16px) 20px
+    calc(var(--m-tab-h) + env(safe-area-inset-bottom, 0px) + 28px);
+}
+
+html.is-mobile .feed-head .section-label {
+  display: none;
+}
+
+/* ---------- 顶栏 ---------- */
+html.is-mobile .m-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--m-top-h) + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--m-bg);
+  border-bottom: 1px solid var(--m-line);
+  z-index: 50;
+}
+
+html.is-mobile .m-top-title {
+  font-family: var(--font-serif);
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--m-text);
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+html.is-mobile .m-top-title small {
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--m-text-3);
+}
+
+html.is-mobile .m-top-actions {
+  display: flex;
+  gap: 6px;
+}
+
+html.is-mobile .m-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text);
+  cursor: pointer;
+}
+
+html.is-mobile .m-icon:active {
+  background: var(--m-ink);
+  color: var(--m-bg);
+  border-color: var(--m-ink);
+}
+
+/* ---------- 底部 Tab Bar ---------- */
+html.is-mobile .m-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--m-tab-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  background: var(--m-bg);
+  border-top: 1px solid var(--m-line);
+  z-index: 50;
+}
+
+html.is-mobile .m-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--m-text-3);
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+html.is-mobile .m-tab svg {
+  width: 21px;
+  height: 21px;
+}
+
+html.is-mobile .m-tab.active {
+  color: var(--m-text);
+}
+
+/* ---------- FAB ---------- */
+html.is-mobile .m-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--m-tab-h) + env(safe-area-inset-bottom, 0px) + 20px);
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
+  background: var(--m-ink);
+  color: var(--m-bg);
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  z-index: 55;
+}
+
+html.is-mobile .m-fab:active {
+  transform: scale(0.94);
+}
+
+/* ---------- 搜索 / 筛选 ---------- */
+html.is-mobile .toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+html.is-mobile .search-box {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--m-line-strong);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 2px;
+  color: var(--m-text-3);
+}
+
+html.is-mobile .search-box input {
+  padding: 11px 0;
+  font-size: 0.98rem;
+  color: var(--m-text);
+}
+
+html.is-mobile .toolbar .selects-row {
+  display: flex;
+  gap: 10px;
+}
+
+html.is-mobile .toolbar select {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  border-radius: var(--m-radius);
+  background: transparent;
+  border: 1px solid var(--m-line);
+  padding: 0 12px;
+  font-size: 0.84rem;
+  color: var(--m-text-2);
+}
+
+html.is-mobile .filter-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--m-line);
+}
+
+html.is-mobile .filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+html.is-mobile .chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 0 8px;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--m-text-3);
+  font-size: 0.86rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+html.is-mobile .chip.active {
+  color: var(--m-text);
+  border-bottom-color: var(--m-ink);
+  font-weight: 700;
+}
+
+/* ---------- 统计卡 ---------- */
+html.is-mobile .stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-bottom: 18px;
+  background: var(--m-line);
+  border: 1px solid var(--m-line);
+}
+
+html.is-mobile .stat-card {
+  background: var(--m-bg);
+  border: none;
+  border-radius: 0;
+  padding: 18px 8px;
+  text-align: center;
+  box-shadow: none;
+}
+
+html.is-mobile .stat-card .num {
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--m-text);
+}
+
+html.is-mobile .stat-card .lbl {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--m-text-3);
+  margin-top: 4px;
+}
+
+html.is-mobile .stat-card.bug .num { color: var(--m-bug); }
+html.is-mobile .stat-card.todo .num { color: var(--m-todo); }
+html.is-mobile .stat-card.req .num { color: var(--m-req); }
+html.is-mobile .stat-card.idea .num { color: var(--m-idea); }
+html.is-mobile .stat-card.done .num { color: var(--m-req); }
+
+/* ---------- 卡片（杂志条目） ---------- */
+html.is-mobile .card-list {
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-mobile .card {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--m-line);
+  border-radius: 0;
+  padding: 20px 0;
+  box-shadow: none;
+}
+
+html.is-mobile .card.pinned {
+  border-left: 2px solid var(--m-accent);
+  padding-left: 14px;
+}
+
+/* 标题行：pin + 标题；徽章移到下一整行（修复竖排 bug） */
+html.is-mobile .card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+html.is-mobile .pin-btn {
+  order: 0;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--m-text-3);
+  cursor: pointer;
+}
+
+html.is-mobile .pin-btn.active {
+  color: var(--m-accent);
+}
+
+html.is-mobile .card-title-wrap {
+  order: 1;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+html.is-mobile .card-title {
+  font-family: var(--font-serif);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--m-text);
+  word-break: break-word;
+}
+
+html.is-mobile .card-project {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--m-text-3);
+  margin-top: 5px;
+}
+
+html.is-mobile .card-badges {
+  order: 2;
+  flex: 0 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0 36px;
+}
+
+/* 极简徽章：hairline 胶囊 */
+html.is-mobile .badge {
+  padding: 3px 10px;
+  border: 1px solid var(--m-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--m-text-2);
+  line-height: 1.4;
+}
+
+html.is-mobile .badge-bug { color: var(--m-bug); border-color: var(--m-bug); }
+html.is-mobile .badge-todo { color: var(--m-todo); border-color: var(--m-todo); }
+html.is-mobile .badge-req { color: var(--m-req); border-color: var(--m-req); }
+html.is-mobile .badge-idea { color: var(--m-idea); border-color: var(--m-idea); }
+html.is-mobile .badge-reminder { color: var(--m-accent); border-color: var(--m-accent); }
+html.is-mobile .badge-reminder-done,
+html.is-mobile .badge-done { color: var(--m-text-3); }
+
+html.is-mobile .tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+html.is-mobile .tag {
+  font-size: 0.74rem;
+  color: var(--m-text-3);
+}
+
+html.is-mobile .card-body {
+  color: var(--m-text-2);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin: 8px 0 0 36px;
+}
+
+html.is-mobile .card-body.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+html.is-mobile .expand-btn {
+  border: none;
+  background: transparent;
+  color: var(--m-accent);
+  font-size: 0.8rem;
+  padding: 8px 0 0 36px;
+  cursor: pointer;
+}
+
+html.is-mobile .card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0 0 36px;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--m-text-3);
+}
+
+html.is-mobile .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-left: 0;
+}
+
+html.is-mobile .card-actions button {
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--m-text-2);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+
+html.is-mobile .card-actions button:active {
+  color: var(--m-text);
+  border-bottom-color: var(--m-text);
+}
+
+html.is-mobile .card-actions button.danger {
+  color: var(--m-accent);
+}
+
+/* ---------- 看板 ---------- */
+html.is-mobile .kanban {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+html.is-mobile .kanban-col {
+  background: transparent;
+  border: none;
+  border-top: 2px solid var(--m-ink);
+  border-radius: 0;
+  padding: 12px 0 0;
+  box-shadow: none;
+}
+
+html.is-mobile .kanban-col-header {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--m-text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+html.is-mobile .kanban-col-header .count {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--m-text-3);
+}
+
+html.is-mobile .kanban-card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius-lg);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+html.is-mobile .kanban-card-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--m-text);
+  margin-bottom: 8px;
+}
+
+html.is-mobile .kanban-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--m-text-3);
+}
+
+/* 看板状态切换条（移动端注入，替代拖拽） */
+html.is-mobile .kc-move {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--m-line);
+}
+
+html.is-mobile .kc-move button {
+  min-height: 34px;
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text-2);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+html.is-mobile .kc-move button.cur {
+  background: var(--m-ink);
+  color: var(--m-bg);
+  border-color: var(--m-ink);
+  font-weight: 600;
+}
+
+html.is-mobile .kanban-card .hint-text {
+  color: var(--m-text-3);
+  font-size: 0.78rem;
+}
+
+/* ---------- Tab 视图切换（data-mtab） ---------- */
+html.is-mobile[data-mtab="list"] #kanbanBoard { display: none !important; }
+html.is-mobile[data-mtab="list"] #cardList { display: flex; }
+
+html.is-mobile[data-mtab="kanban"] .toolbar,
+html.is-mobile[data-mtab="kanban"] .filter-chips,
+html.is-mobile[data-mtab="kanban"] .stat-cards,
+html.is-mobile[data-mtab="kanban"] #cardList { display: none !important; }
+html.is-mobile[data-mtab="kanban"] #kanbanBoard { display: flex !important; }
+
+html.is-mobile[data-mtab="stats"] .toolbar,
+html.is-mobile[data-mtab="stats"] .filter-chips,
+html.is-mobile[data-mtab="stats"] #cardList,
+html.is-mobile[data-mtab="stats"] #kanbanBoard { display: none !important; }
+html.is-mobile[data-mtab="stats"] .stat-cards {
+  grid-template-columns: repeat(2, 1fr);
+}
+html.is-mobile[data-mtab="stats"] .stat-card {
+  padding: 34px 12px;
+}
+html.is-mobile[data-mtab="stats"] .stat-card .num {
+  font-size: 2.4rem;
+}
+
+html.is-mobile[data-mtab="calendar"] .feed { display: none !important; }
+html.is-mobile[data-mtab="calendar"] .m-fab { display: none !important; }
+
+/* ============================================================
+   日历视图（杂志风）
+   ============================================================ */
+html.is-mobile .m-calendar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  flex-direction: column;
+  gap: 0;
+  padding: calc(var(--m-top-h) + env(safe-area-inset-top, 0px) + 16px) 20px
+    calc(var(--m-tab-h) + env(safe-area-inset-bottom, 0px) + 16px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 5;
+  background: var(--m-bg);
+}
+
+html.is-mobile[data-mtab="calendar"] .m-calendar {
+  display: flex;
+}
+
+html.is-mobile .cal-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--m-line);
+  flex: 0 0 auto;
+}
+
+html.is-mobile .cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+html.is-mobile .cal-title {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--m-text);
+  letter-spacing: 0.01em;
+}
+
+html.is-mobile .cal-nav {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+html.is-mobile .cal-nav:active {
+  background: var(--m-ink);
+  color: var(--m-bg);
+  border-color: var(--m-ink);
+}
+
+html.is-mobile .cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+html.is-mobile .cal-weekdays span {
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--m-text-3);
+  padding: 4px 0;
+}
+
+html.is-mobile .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+}
+
+html.is-mobile .cal-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--m-text);
+  cursor: pointer;
+}
+
+html.is-mobile .cal-cell.muted {
+  color: var(--m-text-3);
+  opacity: 0.4;
+}
+
+html.is-mobile .cal-cell.today {
+  color: var(--m-accent);
+  font-weight: 700;
+}
+
+html.is-mobile .cal-cell.selected {
+  color: var(--m-bg);
+}
+
+html.is-mobile .cal-cell.selected::before {
+  content: "";
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  background: var(--m-ink);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+html.is-mobile .cal-cell.selected > * ,
+html.is-mobile .cal-cell.selected {
+  position: relative;
+}
+html.is-mobile .cal-cell span,
+html.is-mobile .cal-cell { z-index: 1; }
+html.is-mobile .cal-cell.selected::before { z-index: -1; }
+
+html.is-mobile .cal-cell .cal-dot {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+}
+
+html.is-mobile .cal-cell .cal-dot i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--m-text-3);
+}
+
+html.is-mobile .cal-dot i.t-bug { background: var(--m-bug); }
+html.is-mobile .cal-dot i.t-todo { background: var(--m-todo); }
+html.is-mobile .cal-dot i.t-req { background: var(--m-req); }
+html.is-mobile .cal-dot i.t-idea { background: var(--m-idea); }
+html.is-mobile .cal-cell.selected .cal-dot i { background: var(--m-bg); }
+
+/* 当日计划面板 */
+html.is-mobile .cal-day-panel {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 140px;
+}
+
+html.is-mobile .cal-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+html.is-mobile .cal-day-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--m-text);
+}
+
+html.is-mobile .cal-add {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--m-ink);
+  border-radius: var(--m-radius);
+  background: var(--m-ink);
+  color: var(--m-bg);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+html.is-mobile .cal-add:active {
+  opacity: 0.85;
+}
+
+html.is-mobile .cal-day-list {
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-mobile .cal-plan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--m-line);
+  cursor: pointer;
+}
+
+html.is-mobile .cal-plan:active {
+  opacity: 0.6;
+}
+
+html.is-mobile .cal-plan .cal-plan-bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 0;
+  background: var(--m-text-3);
+  flex: 0 0 auto;
+}
+
+html.is-mobile .cal-plan-bar.t-bug { background: var(--m-bug); }
+html.is-mobile .cal-plan-bar.t-todo { background: var(--m-todo); }
+html.is-mobile .cal-plan-bar.t-req { background: var(--m-req); }
+html.is-mobile .cal-plan-bar.t-idea { background: var(--m-idea); }
+
+html.is-mobile .cal-plan-main {
+  flex: 1;
+  min-width: 0;
+}
+
+html.is-mobile .cal-plan-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--m-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.is-mobile .cal-plan-sub {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--m-text-3);
+  margin-top: 4px;
+}
+
+html.is-mobile .cal-plan-time {
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--m-text);
+  flex: 0 0 auto;
+}
+
+html.is-mobile .cal-empty {
+  color: var(--m-text-3);
+  font-size: 0.84rem;
+  padding: 28px 0;
+}
+
+/* ---------- 新建/编辑 Sheet ---------- */
+html.is-mobile .m-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 14, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease;
+  z-index: 60;
+}
+
+html.is-mobile .m-sheet-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+html.is-mobile .m-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--m-bg);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 61;
+  will-change: transform;
+}
+
+html.is-mobile .m-sheet.open {
+  transform: translateY(0);
+}
+
+html.is-mobile .m-sheet-head {
+  flex: 0 0 auto;
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--m-bg);
+  border-bottom: 1px solid var(--m-line);
+}
+
+html.is-mobile .m-sheet-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--m-text);
+}
+
+html.is-mobile .m-sheet-btn {
+  min-width: 60px;
+  height: 38px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text-2);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+html.is-mobile .m-sheet-btn.primary {
+  background: var(--m-ink);
+  color: var(--m-bg);
+  font-weight: 600;
+}
+
+html.is-mobile .m-sheet-btn:active {
+  opacity: 0.7;
+}
+
+html.is-mobile .m-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+
+html.is-mobile .m-sheet-body .composer {
+  display: block;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* ---------- 表单 ---------- */
+html.is-mobile .field {
+  margin-bottom: 18px;
+}
+
+html.is-mobile .field > label,
+html.is-mobile .label-row label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--m-text-3);
+  margin-bottom: 8px;
+}
+
+html.is-mobile .field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+html.is-mobile input[type="text"],
+html.is-mobile input[type="number"],
+html.is-mobile input[type="password"],
+html.is-mobile input[type="datetime-local"],
+html.is-mobile select,
+html.is-mobile textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--m-text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--m-line-strong);
+  border-radius: 0;
+  padding: 10px 2px;
+  box-sizing: border-box;
+}
+
+html.is-mobile input:focus,
+html.is-mobile select:focus,
+html.is-mobile textarea:focus {
+  outline: none;
+  border-bottom-color: var(--m-ink);
+}
+
+html.is-mobile textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.65;
+  border: 1px solid var(--m-line-strong);
+  border-radius: var(--m-radius);
+  padding: 12px;
+}
+
+html.is-mobile .type-pills {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+html.is-mobile .pill {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--m-line-strong);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text-2);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+html.is-mobile .pill.active {
+  background: var(--m-ink);
+  border-color: var(--m-ink);
+  color: var(--m-bg);
+}
+
+html.is-mobile .label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+html.is-mobile .label-row label {
+  margin-bottom: 0;
+}
+
+html.is-mobile .mini-seg {
+  display: flex;
+  gap: 6px;
+}
+
+html.is-mobile .mini-seg-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text-2);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+html.is-mobile .mini-seg-btn.active {
+  background: var(--m-ink);
+  border-color: var(--m-ink);
+  color: var(--m-bg);
+}
+
+html.is-mobile .mini-seg-btn.accent {
+  color: var(--m-accent);
+}
+
+html.is-mobile .check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--m-text-2);
+  cursor: pointer;
+}
+
+html.is-mobile .check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  accent-color: var(--m-ink);
+}
+
+html.is-mobile .reminder-panel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  background: var(--m-surface-2);
+}
+
+html.is-mobile .reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+html.is-mobile .reminder-preview {
+  font-size: 0.78rem;
+  color: var(--m-text-2);
+}
+
+html.is-mobile .reminder-preview.warn {
+  color: var(--m-accent);
+}
+
+html.is-mobile .drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px;
+  border: 1px dashed var(--m-line-strong);
+  border-radius: var(--m-radius);
+  background: transparent;
+  color: var(--m-text-3);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+html.is-mobile .drop-zone small {
+  font-size: 0.7rem;
+}
+
+html.is-mobile .preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+html.is-mobile .preview-grid .preview-item img {
+  width: 100%;
+  border-radius: var(--m-radius);
+}
+
+html.is-mobile .draft-banner {
+  margin-bottom: 16px;
+  border-radius: var(--m-radius);
+}
+
+/* ---------- 设置 / 历史 弹层 ---------- */
+html.is-mobile .modal-overlay {
+  padding: 0;
+  background: rgba(20, 18, 14, 0.4);
+  z-index: 70;
+}
+
+html.is-mobile .modal-sheet {
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: var(--m-bg);
+  border: none;
+  box-shadow: none;
+}
+
+html.is-mobile #lightbox {
+  padding: 16px;
+  background: rgba(20, 18, 14, 0.9);
+}
+
+html.is-mobile .modal-head {
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 18px 0;
+  background: var(--m-bg);
+  border-bottom: 1px solid var(--m-line);
+}
+
+html.is-mobile .modal-head h3 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+html.is-mobile .modal-x {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  border: none;
+  background: transparent;
+  color: var(--m-text-2);
+  cursor: pointer;
+}
+
+html.is-mobile .modal-body {
+  padding: 18px;
+}
+
+html.is-mobile .settings-block {
+  margin-bottom: 28px;
+}
+
+html.is-mobile .settings-block h4 {
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+html.is-mobile .btn {
+  min-height: 46px;
+  border-radius: var(--m-radius);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+html.is-mobile .btn-3d {
+  background: var(--m-ink);
+  color: var(--m-bg);
+  border: none;
+}
+
+html.is-mobile .btn-soft {
+  background: transparent;
+  border: 1px solid var(--m-line-strong);
+  color: var(--m-text);
+}
+
+html.is-mobile .btn-3d:active,
+html.is-mobile .btn-soft:active {
+  opacity: 0.8;
+}
+
+html.is-mobile .btn.full {
+  width: 100%;
+}
+
+/* 空状态 */
+html.is-mobile .empty {
+  padding: 72px 24px;
+  text-align: center;
+}
+html.is-mobile .empty .empty-icon {
+  font-size: 2rem;
+  color: var(--m-text-3);
+}
+html.is-mobile .empty p:first-of-type {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--m-text-2);
+}
+html.is-mobile .empty p:last-child {
+  font-size: 0;
+}
+html.is-mobile .empty p:last-child::after {
+  content: "点击右下角 + 新建一条留档";
+  font-size: 0.8rem;
+  color: var(--m-text-3);
+}
+
+/* Toast */
+html.is-mobile .toast {
+  left: 50%;
+  right: auto;
+  bottom: calc(var(--m-tab-h) + env(safe-area-inset-bottom, 0px) + 20px);
+  transform: translateX(-50%) translateY(12px);
+  background: var(--m-ink);
+  border: none;
+  border-radius: var(--m-radius);
+  color: var(--m-bg);
+  font-size: 0.85rem;
+  z-index: 80;
+}
+
+html.is-mobile .toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   自定义背景：露出 #appBg
+   ============================================================ */
+html.is-mobile.has-custom-bg body { background: transparent !important; }
+
+/* ============================================================
+   手机风格：玻璃拟态（覆盖默认杂志）
+   ============================================================ */
+html.is-mobile[data-style="glass"] {
+  --m-bg: #cfdcff;
+  --m-surface: rgba(255, 255, 255, 0.55);
+  --m-surface-2: rgba(255, 255, 255, 0.42);
+  --m-line: rgba(255, 255, 255, 0.6);
+  --m-line-strong: rgba(255, 255, 255, 0.72);
+  --m-text: #1c2333;
+  --m-text-2: #515c72;
+  --m-text-3: #8b95ab;
+  --m-ink: #4f6bed;
+  --m-accent: #7c5cff;
+  --m-radius: 14px;
+  --m-radius-lg: 20px;
+  --font-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", system-ui, sans-serif;
+}
+html.is-mobile[data-style="glass"] body {
+  background: linear-gradient(160deg, #cfdcff 0%, #e6ddff 46%, #ffdcef 100%);
+  background-attachment: fixed;
+}
+html.is-mobile[data-style="glass"][data-theme="dark"] {
+  --m-surface: rgba(28, 33, 52, 0.5);
+  --m-surface-2: rgba(28, 33, 52, 0.42);
+  --m-line: rgba(255, 255, 255, 0.12);
+  --m-line-strong: rgba(255, 255, 255, 0.18);
+  --m-text: #eef1f8;
+  --m-text-2: #aeb6c9;
+  --m-text-3: #717b91;
+  --m-ink: #8ea2ff;
+  --m-accent: #a98bff;
+}
+html.is-mobile[data-style="glass"][data-theme="dark"] body {
+  background: linear-gradient(160deg, #0b1124 0%, #1a1340 50%, #2a1030 100%);
+}
+html.is-mobile[data-style="glass"] .m-top,
+html.is-mobile[data-style="glass"] .m-tabbar {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
+html.is-mobile[data-style="glass"][data-theme="dark"] .m-top,
+html.is-mobile[data-style="glass"][data-theme="dark"] .m-tabbar {
+  background: rgba(28, 33, 52, 0.6);
+}
+html.is-mobile[data-style="glass"] .card-list { gap: 12px; }
+html.is-mobile[data-style="glass"] .card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius-lg);
+  padding: 16px;
+  margin-bottom: 0;
+  box-shadow: 0 8px 30px rgba(31, 40, 90, 0.12);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+html.is-mobile[data-style="glass"] .card.pinned {
+  border-left: 1px solid rgba(124, 92, 255, 0.5);
+  border-color: rgba(124, 92, 255, 0.5);
+  padding-left: 16px;
+}
+html.is-mobile[data-style="glass"] .card-title { font-weight: 600; }
+html.is-mobile[data-style="glass"] .badge { background: var(--m-surface-2); }
+html.is-mobile[data-style="glass"] .filter-chips { border-bottom: none; gap: 8px; }
+html.is-mobile[data-style="glass"] .chip {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--m-line);
+  border-radius: 999px;
+  background: var(--m-surface);
+}
+html.is-mobile[data-style="glass"] .chip.active {
+  background: linear-gradient(150deg, var(--m-accent), var(--m-ink));
+  border-color: transparent;
+  color: #fff;
+}
+html.is-mobile[data-style="glass"] .stat-cards { background: transparent; border: none; gap: 10px; }
+html.is-mobile[data-style="glass"] .stat-card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+}
+html.is-mobile[data-style="glass"] .search-box {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  padding: 0 14px;
+}
+html.is-mobile[data-style="glass"] .toolbar select,
+html.is-mobile[data-style="glass"] input[type="text"],
+html.is-mobile[data-style="glass"] input[type="number"],
+html.is-mobile[data-style="glass"] input[type="password"],
+html.is-mobile[data-style="glass"] input[type="datetime-local"],
+html.is-mobile[data-style="glass"] select,
+html.is-mobile[data-style="glass"] textarea {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  padding: 12px 14px;
+}
+html.is-mobile[data-style="glass"] .m-fab {
+  background: linear-gradient(150deg, var(--m-accent), var(--m-ink));
+  border-radius: 18px;
+  color: #fff;
+}
+html.is-mobile[data-style="glass"] .cal-card { border-bottom-color: var(--m-line); }
+
+/* ============================================================
+   手机风格：扁平素色（覆盖默认杂志）
+   ============================================================ */
+html.is-mobile[data-style="flat"] {
+  --m-bg: #eef1f7;
+  --m-surface: #ffffff;
+  --m-surface-2: #f4f6fb;
+  --m-line: #e4e8f0;
+  --m-line-strong: #d6dce8;
+  --m-text: #1a2138;
+  --m-text-2: #5a6478;
+  --m-text-3: #97a0b5;
+  --m-ink: #4f6bed;
+  --m-accent: #4f6bed;
+  --m-radius: 12px;
+  --m-radius-lg: 16px;
+  --font-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", system-ui, sans-serif;
+}
+html.is-mobile[data-style="flat"][data-theme="dark"] {
+  --m-bg: #0e1118;
+  --m-surface: #181c26;
+  --m-surface-2: #1b2030;
+  --m-line: #2a3040;
+  --m-line-strong: #333b4d;
+  --m-text: #eef1f8;
+  --m-text-2: #aab2c5;
+  --m-text-3: #6b7488;
+  --m-ink: #7c93f5;
+  --m-accent: #7c93f5;
+}
+html.is-mobile[data-style="flat"] .card-list { gap: 12px; }
+html.is-mobile[data-style="flat"] .card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius-lg);
+  padding: 16px;
+  margin-bottom: 0;
+  box-shadow: 0 2px 10px rgba(20, 30, 60, 0.06);
+}
+html.is-mobile[data-style="flat"] .card.pinned {
+  border-left: 3px solid var(--m-accent);
+  padding-left: 14px;
+}
+html.is-mobile[data-style="flat"] .card-title { font-weight: 600; }
+html.is-mobile[data-style="flat"] .badge { background: var(--m-surface-2); }
+html.is-mobile[data-style="flat"] .filter-chips { border-bottom: none; gap: 8px; }
+html.is-mobile[data-style="flat"] .chip {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--m-line);
+  border-radius: 999px;
+  background: var(--m-surface);
+}
+html.is-mobile[data-style="flat"] .chip.active {
+  background: var(--m-accent);
+  border-color: var(--m-accent);
+  color: #fff;
+}
+html.is-mobile[data-style="flat"] .stat-cards { background: transparent; border: none; gap: 10px; }
+html.is-mobile[data-style="flat"] .stat-card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+}
+html.is-mobile[data-style="flat"] .search-box {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  padding: 0 14px;
+}
+html.is-mobile[data-style="flat"] .toolbar select,
+html.is-mobile[data-style="flat"] input[type="text"],
+html.is-mobile[data-style="flat"] input[type="number"],
+html.is-mobile[data-style="flat"] input[type="password"],
+html.is-mobile[data-style="flat"] input[type="datetime-local"],
+html.is-mobile[data-style="flat"] select,
+html.is-mobile[data-style="flat"] textarea {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-radius);
+  padding: 12px 14px;
+}
+html.is-mobile[data-style="flat"] .m-fab {
+  background: var(--m-accent);
+  border-radius: 16px;
+  color: #fff;
 }
