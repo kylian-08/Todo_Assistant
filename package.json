@@ -1,6 +1,6 @@
 {
   "name": "todo-assistant",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "TODO Assistant · 留档助手 — Bug / 待办 / 需求 / 灵感 本地归档工具",
   "main": "electron/main.js",
   "scripts": {
