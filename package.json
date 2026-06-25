@@ -1,6 +1,6 @@
 {
   "name": "todo-assistant",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "TODO Assistant · 留档助手 — Bug / 待办 / 需求 / 灵感 本地归档工具",
   "main": "electron/main.js",
   "scripts": {
@@ -28,14 +28,15 @@
   "homepage": "https://github.com/kylian-08/TODO_Assistant#readme",
   "dependencies": {
     "@capacitor/android": "^7.2.0",
+    "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.2.0",
     "@capacitor/local-notifications": "^7.0.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.2.0",
-    "esbuild": "^0.25.0",
     "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0"
   },
   "build": {
     "appId": "com.kylian.todo-assistant",
@@ -57,7 +58,12 @@
     "electronDist": "node_modules/electron/dist",
     "win": {
       "target": [
-        { "target": "dir", "arch": ["x64"] }
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icon.png",
       "executableName": "TODO_Assistant"
